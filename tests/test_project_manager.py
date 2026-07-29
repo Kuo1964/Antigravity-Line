@@ -45,7 +45,7 @@ def test_detect_project_from_prompt(tmp_path):
 
 @pytest.mark.anyio
 async def test_agent_manager_project_context():
-    """測試 Agent Manager 是否會將專案 Context 動態注入提示詞"""
+    """測試 Agent Manager 是否會將專案 Context 與權限宣告動態注入提示詞"""
     manager = AntigravityAgentManager()
     user_id = "test_project_user"
 
@@ -68,5 +68,34 @@ async def test_agent_manager_project_context():
 
         assert "DemoProject" in result
         call_prompt = mock_client.models.generate_content.call_args.kwargs["contents"]
-        assert "[當前操作專案Context]" in call_prompt
+        assert "[系統權限宣告]" in call_prompt
         assert "DemoProject" in call_prompt
+
+@pytest.mark.anyio
+async def test_agent_manager_auto_file_preload(tmp_path):
+    """測試當 Prompt 提及檔案時，是否自動讀取專案檔案並注入 Context"""
+    proj_dir = tmp_path / "Yuanta_FCN"
+    proj_dir.mkdir()
+    guide_file = proj_dir / "SETUP_GUIDE.md"
+    guide_file.write_text("這是 Yuanta_FCN 安裝指南內容", encoding="utf-8")
+
+    manager = AntigravityAgentManager()
+    user_id = "test_file_user"
+
+    fake_proj = {"name": "Yuanta_FCN", "path": str(proj_dir)}
+    manager.set_user_project(user_id, fake_proj)
+
+    mock_response = MagicMock()
+    mock_response.text = "SETUP_GUIDE.md 內容已成功解析"
+
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+
+    with patch("app.config.settings.GEMINI_API_KEY", "valid_key"), \
+         patch("google.genai.Client", return_value=mock_client):
+
+        result = await manager.run_agent_task(user_id, "查看 SETUP_GUIDE.md 內容")
+
+        call_prompt = mock_client.models.generate_content.call_args.kwargs["contents"]
+        assert "[專案檔案 'SETUP_GUIDE.md' 的實際內容]" in call_prompt
+        assert "這是 Yuanta_FCN 安裝指南內容" in call_prompt

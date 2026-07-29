@@ -83,10 +83,39 @@ class AntigravityAgentManager:
                     history_text += f"使用者: {item['user']}\nAI: {item['agent']}\n"
 
                 project_context = ""
+                file_content_context = ""
+
                 if current_project:
-                    project_context = f"[當前操作專案Context]\n專案名稱: {current_project['name']}\n專案絕對路徑: {current_project['path']}\n"
-                
-                full_prompt = f"{project_context}{history_text}使用者: {prompt}\nAI:" if (history_text or project_context) else prompt
+                    proj_name = current_project["name"]
+                    proj_path = current_project["path"]
+                    project_context = (
+                        f"[系統權限宣告]\n"
+                        f"您是 Antigravity Agent 控制系統，擁有存取並讀取使用者專案本地檔案與執行指令的完全授權。\n"
+                        f"當前鎖定操作專案: {proj_name}\n"
+                        f"專案絕對路徑: {proj_path}\n"
+                    )
+
+                    # 檢查 Prompt 是否提及特定檔案（例如 SETUP_GUIDE.md, README.md, .env 等），若有則自動前置讀取
+                    try:
+                        import os
+                        if os.path.exists(proj_path):
+                            for fname in os.listdir(proj_path):
+                                if len(fname) > 3 and fname.lower() in prompt.lower():
+                                    file_full_path = os.path.join(proj_path, fname)
+                                    if os.path.isfile(file_full_path):
+                                        with open(file_full_path, "r", encoding="utf-8", errors="ignore") as f:
+                                            content = f.read(8000)
+                                            file_content_context += f"\n[專案檔案 '{fname}' 的實際內容]:\n{content}\n"
+                                        logger.info(f"已成功前置讀取專案檔案: {fname}")
+                    except Exception as fe:
+                        logger.warning(f"自動讀取專案檔案時發生警告: {fe}")
+
+                full_prompt = (
+                    f"{project_context}"
+                    f"{file_content_context}"
+                    f"{history_text}"
+                    f"使用者: {prompt}\nAI:"
+                )
                 
                 # 若設定檔啟用連網搜尋，配置 Google Search Grounding 工具
                 config = None
