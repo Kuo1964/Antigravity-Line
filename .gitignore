@@ -1,0 +1,20 @@
+# 敏感與環境設定檔 (嚴禁提交)
+.env
+.env.local
+
+# Python 虛擬環境與快取
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE 與系統暫存檔
+.DS_Store
+.vscode/
+.idea/
+
+# 日誌與測試輸出
+*.log
