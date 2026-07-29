@@ -95,18 +95,53 @@ class AntigravityAgentManager:
                         f"專案絕對路徑: {proj_path}\n"
                     )
 
-                    # 檢查 Prompt 是否提及特定檔案（例如 SETUP_GUIDE.md, README.md, .env 等），若有則自動前置讀取
+                    # 1. 取得並注入專案目錄下的所有檔案清單
+                    all_files = []
+                    ignore_dirs = {".git", ".idea", ".vscode", "node_modules", "venv", "__pycache__", ".DS_Store"}
                     try:
                         import os
                         if os.path.exists(proj_path):
-                            for fname in os.listdir(proj_path):
-                                if len(fname) > 3 and fname.lower() in prompt.lower():
-                                    file_full_path = os.path.join(proj_path, fname)
-                                    if os.path.isfile(file_full_path):
+                            all_files = [f for f in os.listdir(proj_path) if not f.startswith(".") and f not in ignore_dirs and os.path.isfile(os.path.join(proj_path, f))]
+                            project_context += f"專案檔案列表: {', '.join(all_files)}\n"
+                    except Exception:
+                        pass
+
+                    # 2. 智慧檔案匹配與內容自動前置載入
+                    try:
+                        if os.path.exists(proj_path) and all_files:
+                            matched_files = set()
+                            prompt_lower = prompt.lower()
+
+                            # (A) 精準或關鍵字檔名比對
+                            for fname in all_files:
+                                fname_lower = fname.lower()
+                                # 檔名中的主要詞彙 (如 '行程', '規劃', 'setup', 'guide', 'readme', '2026')
+                                name_without_ext = os.path.splitext(fname_lower)[0]
+                                tokens = [t for t in name_without_ext.replace("_", " ").replace("-", " ").split() if len(t) >= 2]
+                                
+                                if fname_lower in prompt_lower or any(t in prompt_lower for t in tokens if t not in ["2026", "the", "and"]):
+                                    matched_files.add(fname)
+
+                            # (B) 若使用者詢問「行程」、「規劃」、「內容」、「最新」等概要問題，自動選擇主要的 .md 或 .txt 檔案
+                            intent_keywords = ["行程", "規劃", "內容", "最新", "完整", "介紹", "說明", "檢視", "總彙整", "清單"]
+                            if any(k in prompt for k in intent_keywords):
+                                md_files = [f for f in all_files if f.endswith(".md") or f.endswith(".txt")]
+                                # 依檔案大小或關鍵字優先載入
+                                for mfile in sorted(md_files, key=lambda x: len(x), reverse=True):
+                                    matched_files.add(mfile)
+
+                            # 限制最多自動前置載入 2 個符合的檔案，防止超過 Token 上限
+                            for fname in list(matched_files)[:2]:
+                                file_full_path = os.path.join(proj_path, fname)
+                                if os.path.isfile(file_full_path):
+                                    try:
                                         with open(file_full_path, "r", encoding="utf-8", errors="ignore") as f:
-                                            content = f.read(8000)
+                                            content = f.read(10000)
                                             file_content_context += f"\n[專案檔案 '{fname}' 的實際內容]:\n{content}\n"
-                                        logger.info(f"已成功前置讀取專案檔案: {fname}")
+                                        logger.info(f"已成功前置載入專案檔案內容: {fname}")
+                                    except Exception as r_err:
+                                        logger.warning(f"讀取檔案 {fname} 失敗: {r_err}")
+
                     except Exception as fe:
                         logger.warning(f"自動讀取專案檔案時發生警告: {fe}")
 

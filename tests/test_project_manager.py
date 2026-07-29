@@ -99,3 +99,32 @@ async def test_agent_manager_auto_file_preload(tmp_path):
         call_prompt = mock_client.models.generate_content.call_args.kwargs["contents"]
         assert "[專案檔案 'SETUP_GUIDE.md' 的實際內容]" in call_prompt
         assert "這是 Yuanta_FCN 安裝指南內容" in call_prompt
+
+@pytest.mark.anyio
+async def test_agent_manager_smart_travel_plan_auto_load(tmp_path):
+    """測試當使用者詢問未指定精確檔名之「行程規劃」時，是否智慧自動讀取專案內之行程 md 檔案」"""
+    proj_dir = tmp_path / "Portugal_Paris-2026"
+    proj_dir.mkdir()
+    plan_file = proj_dir / "2026_葡萄牙巴黎17天每日詳細行程總彙整.md"
+    plan_file.write_text("第1天: 抵達里斯本，入住飯店休息...", encoding="utf-8")
+
+    manager = AntigravityAgentManager()
+    user_id = "test_travel_user"
+
+    fake_proj = {"name": "Portugal_Paris-2026", "path": str(proj_dir)}
+    manager.set_user_project(user_id, fake_proj)
+
+    mock_response = MagicMock()
+    mock_response.text = "這是您在 Portugal_Paris-2026 的最新17天詳細行程總彙整..."
+
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+
+    with patch("app.config.settings.GEMINI_API_KEY", "valid_key"), \
+         patch("google.genai.Client", return_value=mock_client):
+
+        result = await manager.run_agent_task(user_id, "幫我在 Portugal_Paris-2026 專案中查看到目前為止最新最完整的行程規劃")
+
+        call_prompt = mock_client.models.generate_content.call_args.kwargs["contents"]
+        assert "2026_葡萄牙巴黎17天每日詳細行程總彙整.md" in call_prompt
+        assert "[專案檔案 " in call_prompt
