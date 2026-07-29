@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, HTTPException, Header, BackgroundTasks
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.agent_manager import agent_manager
+from app.project_manager import project_manager
 from app.line_handler import send_line_push_message
 
 # 設定 Logging 格式
@@ -67,24 +68,61 @@ async def webhook(
         # 2. 處理內建控制指令
         if user_text.lower() in ["/reset", "/clear"]:
             agent_manager.reset_session(user_id)
-            send_line_push_message(user_id, "🧹 對話與 Session 歷史紀錄已成功重置！")
+            send_line_push_message(user_id, "🧹 對話、Session 歷史紀錄與專案鎖定已成功重置！")
+            continue
+
+        if user_text.lower() in ["/projects", "/ps"]:
+            projects = project_manager.list_projects()
+            session = agent_manager.get_or_create_session(user_id)
+            curr = session.get("current_project")
+            curr_name = curr["name"] if curr else "（未指定，預設搜尋全工作區）"
+
+            msg = "📂 【工作區專案列表】\n"
+            msg += f"📍 當前鎖定專案: {curr_name}\n\n"
+            if not projects:
+                msg += "⚠️ 目前工作區下未掃描到任何專案資料夾。"
+            else:
+                msg += f"共掃描到 {len(projects)} 個專案：\n"
+                for idx, p in enumerate(projects, 1):
+                    prefix = "👉 " if (curr and curr["name"] == p["name"]) else "• "
+                    msg += f"{prefix}{idx}. {p['name']}\n"
+                msg += "\n💡 提示：在對話中直接輸入專案名稱（如「在 Antigravity-Line 執行測試」）或使用 `/use <專案名>` 即可自動切換！"
+            
+            send_line_push_message(user_id, msg)
+            continue
+
+        if user_text.lower().startswith("/use "):
+            target_name = user_text[5:].strip()
+            proj = project_manager.detect_project_from_prompt(target_name)
+            if proj:
+                agent_manager.set_user_project(user_id, proj)
+                send_line_push_message(user_id, f"✅ 已成功將目標專案切換至：【{proj['name']}】\n📁 路徑: {proj['path']}")
+            else:
+                send_line_push_message(user_id, f"❌ 找不到名稱匹配 '{target_name}' 的專案，請輸入 `/projects` 查看可用專案清單。")
             continue
 
         if user_text.lower() == "/status":
             is_busy = agent_manager.is_busy(user_id)
+            session = agent_manager.get_or_create_session(user_id)
+            curr_proj = session.get("current_project")
+            curr_proj_str = f"{curr_proj['name']} ({curr_proj['path']})" if curr_proj else "全工作區 (未鎖定)"
+            
             status_msg = "⚙️ 系統狀態報告：\n"
-            status_msg += f"- 當前連線使用者: {user_id}\n"
+            status_msg += f"- 連線使用者: {user_id}\n"
+            status_msg += f"- 目標專案: {curr_proj_str}\n"
             status_msg += f"- Agent 狀態: {'⏳ 執行任務中' if is_busy else '✅ 待命狀態 (Idle)'}"
             send_line_push_message(user_id, status_msg)
             continue
 
         if user_text.lower() == "/help":
             help_msg = (
-                "🤖 【Antigravity Line 控制指令手冊】\n\n"
-                "• 直接輸入任何文字 Prompt 即可觸發 Antigravity Agent 執行任務。\n"
-                "• /status  : 查詢目前 Agent 執行狀態\n"
-                "• /reset   : 清除並重置過去對話 Session 上下文\n"
-                "• /help    : 顯示此說明選單"
+                "🤖 【Antigravity Line 多專案控制指令手冊】\n\n"
+                "• 直接輸入對話或帶有專案名稱之指令（如「幫我在 Antigravity-Line 跑測試」）即可觸發控制。\n"
+                "• /projects (或 /ps) : 列出工作區所有專案及當前鎖定項目\n"
+                "• /use <專案名>      : 手動切換當前鎖定的目標專案\n"
+                "• /status            : 查詢目前 Agent 執行狀態與專案資訊\n"
+                "• /reset             : 清除並重置對話與專案 Session\n"
+                "• /help              : 顯示此說明選單"
             )
             send_line_push_message(user_id, help_msg)
             continue

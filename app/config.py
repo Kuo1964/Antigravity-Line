@@ -9,8 +9,20 @@ class Settings(BaseSettings):
     ALLOWED_USER_IDS: str = ""  # 逗號分隔的 Line User ID 字串
     GEMINI_API_KEY: str = ""
     ENABLE_WEB_SEARCH: bool = True  # 是否開啟 Google Search Grounding 即時連網搜尋功能
+    WORKSPACE_ROOT: str = ""  # 工作區總目錄路徑（若留空則自動使用當前專案父目錄）
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+
+    @property
+    def effective_workspace_root(self) -> str:
+        """取得有效的工作區總目錄絕對路徑"""
+        if self.WORKSPACE_ROOT.strip():
+            return os.path.abspath(self.WORKSPACE_ROOT.strip())
+        # 預設向上搜尋至包含所有專案的主資料夾層級 (如 我的雲端硬碟)
+        current_project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        parent_dir = os.path.dirname(current_project_dir)
+        grandparent_dir = os.path.dirname(parent_dir)
+        return grandparent_dir
 
     model_config = SettingsConfigDict(
         env_file=".env",
