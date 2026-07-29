@@ -3,6 +3,7 @@ import asyncio
 import time
 from typing import Dict, Any, Optional
 from app.config import settings
+from app.project_manager import project_manager
 
 logger = logging.getLogger("agent_manager")
 
@@ -20,18 +21,25 @@ class AntigravityAgentManager:
         if user_id not in self.sessions:
             self.sessions[user_id] = {
                 "history": [],
-                "created_at": time.time()
+                "created_at": time.time(),
+                "current_project": None
             }
             logger.info(f"已為使用者 {user_id} 建立新的 Antigravity Agent Session")
         return self.sessions[user_id]
 
     def reset_session(self, user_id: str) -> bool:
-        """重置指定使用者的 Session 對話歷史"""
+        """重置指定使用者的 Session 對話歷史與目標專案"""
         if user_id in self.sessions:
             del self.sessions[user_id]
             logger.info(f"已重置使用者 {user_id} 的 Session")
             return True
         return False
+
+    def set_user_project(self, user_id: str, project_info: Dict[str, str]):
+        """手動或動態設定使用者目前鎖定的目標專案"""
+        session = self.get_or_create_session(user_id)
+        session["current_project"] = project_info
+        logger.info(f"已將使用者 {user_id} 的目標專案切換為: {project_info['name']} ({project_info['path']})")
 
     def is_busy(self, user_id: str) -> bool:
         """檢查使用者是否有正在執行的 Agent 任務"""
@@ -56,18 +64,29 @@ class AntigravityAgentManager:
                     "並貼入 `.env` 的 `GEMINI_API_KEY=` 欄位中，即可啟用真實的智慧 AI 對話與新聞檢索功能！"
                 )
 
+            # 動態解析 Prompt 中是否提及特定的專案名稱
+            detected_project = project_manager.detect_project_from_prompt(prompt)
+            if detected_project:
+                self.set_user_project(user_id, detected_project)
+
+            current_project = session.get("current_project")
+
             # 1. 優先嘗試 Google Antigravity / GenAI SDK 進行推論
             try:
                 from google import genai
                 from google.genai import types
                 client = genai.Client(api_key=api_key)
                 
-                # 構建帶有 Context 的 Prompt
+                # 構建帶有專案背景 Context 的 Prompt
                 history_text = ""
                 for item in session["history"][-5:]:  # 帶入最近 5 輪對話
                     history_text += f"使用者: {item['user']}\nAI: {item['agent']}\n"
+
+                project_context = ""
+                if current_project:
+                    project_context = f"[當前操作專案Context]\n專案名稱: {current_project['name']}\n專案絕對路徑: {current_project['path']}\n"
                 
-                full_prompt = f"{history_text}使用者: {prompt}\nAI:" if history_text else prompt
+                full_prompt = f"{project_context}{history_text}使用者: {prompt}\nAI:" if (history_text or project_context) else prompt
                 
                 # 若設定檔啟用連網搜尋，配置 Google Search Grounding 工具
                 config = None
