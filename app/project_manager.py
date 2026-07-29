@@ -18,40 +18,58 @@ class ProjectManager:
 
     def list_projects(self) -> List[Dict[str, str]]:
         """
-        自動掃描工作區總目錄下的所有專案資料夾。
+        自動掃描工作區總目錄及其子目錄下的所有專案資料夾。
+        採零延遲目錄特徵比對，避免觸發雲端儲存同步掛起。
         
         Returns:
             List[Dict[str, str]]: 包含專案名稱 (name) 與絕對路徑 (path) 的列表
         """
         projects = []
-        root_path = self.workspace_root
+        seen_paths = set()
 
-        if not os.path.exists(root_path) or not os.path.isdir(root_path):
-            logger.warning(f"工作區根目錄不存在或無效: {root_path}")
+        ignore_dirs = {".git", ".idea", ".vscode", "node_modules", "venv", "__pycache__", "Colab Notebooks", ".DS_Store"}
+
+        # 主搜尋根目錄：優先使用 WORKSPACE_ROOT (如 我的雲端硬碟)
+        root = self.workspace_root or settings.effective_workspace_root
+
+        if not root or not os.path.exists(root) or not os.path.isdir(root):
             return projects
 
         try:
-            for item in os.listdir(root_path):
-                full_path = os.path.join(root_path, item)
-                
-                # 忽略隱藏資料夾（如 .git, .idea）與非目錄項目
-                if item.startswith(".") or not os.path.isdir(full_path):
+            for item in os.listdir(root):
+                if item.startswith(".") or item in ignore_dirs:
+                    continue
+                full_path = os.path.abspath(os.path.join(root, item))
+                if not os.path.isdir(full_path) or full_path in seen_paths:
                     continue
 
-                # 檢查是否具備專案特徵標記檔案
-                markers = [".git", "requirements.txt", "package.json", "pyproject.toml", "Dockerfile", "Cargo.toml", "go.mod"]
-                is_project = any(os.path.exists(os.path.join(full_path, m)) for m in markers)
-
-                # 若有特徵標記或屬於一般有效資料夾，均納入專案清單
-                if is_project or len(os.listdir(full_path)) > 0:
+                # 如果此資料夾是中介分類資料夾 (如 worktemp)，掃描其下層子專案資料夾
+                if item.lower() in ["worktemp", "projects", "workspace", "code", "dev"]:
+                    try:
+                        for sub_item in os.listdir(full_path):
+                            if sub_item.startswith(".") or sub_item in ignore_dirs:
+                                continue
+                            sub_path = os.path.abspath(os.path.join(full_path, sub_item))
+                            if os.path.isdir(sub_path) and sub_path not in seen_paths:
+                                seen_paths.add(sub_path)
+                                projects.append({
+                                    "name": sub_item,
+                                    "path": sub_path,
+                                    "is_valid_project": True
+                                })
+                    except Exception:
+                        pass
+                else:
+                    # 一般頂層專案資料夾 (如 Yuanta_FCN, TSMC_AI, IBM)
+                    seen_paths.add(full_path)
                     projects.append({
                         "name": item,
                         "path": full_path,
-                        "is_valid_project": is_project
+                        "is_valid_project": True
                     })
 
         except Exception as e:
-            logger.error(f"掃描工作區專案資料夾時發生錯誤: {e}")
+            logger.error(f"掃描專案目錄失敗 ({root}): {e}")
 
         # 依專案名稱排序
         return sorted(projects, key=lambda x: x["name"].lower())

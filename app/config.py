@@ -18,9 +18,11 @@ class Settings(BaseSettings):
         """取得有效的工作區總目錄絕對路徑"""
         if self.WORKSPACE_ROOT.strip():
             return os.path.abspath(self.WORKSPACE_ROOT.strip())
-        # 預設為當前專案 app 目錄所在之父目錄
+        # 預設向上搜尋至包含所有專案的主資料夾層級 (如 我的雲端硬碟)
         current_project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.dirname(current_project_dir)
+        parent_dir = os.path.dirname(current_project_dir)
+        grandparent_dir = os.path.dirname(parent_dir)
+        return grandparent_dir
 
     model_config = SettingsConfigDict(
         env_file=".env",
