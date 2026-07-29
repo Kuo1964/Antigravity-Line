@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from typing import Dict, Any, Optional
 from app.config import settings
 
@@ -19,7 +20,7 @@ class AntigravityAgentManager:
         if user_id not in self.sessions:
             self.sessions[user_id] = {
                 "history": [],
-                "created_at": asyncio.get_event_loop().time()
+                "created_at": time.time()
             }
             logger.info(f"已為使用者 {user_id} 建立新的 Antigravity Agent Session")
         return self.sessions[user_id]
@@ -54,10 +55,10 @@ class AntigravityAgentManager:
                     "請至 Google AI Studio (https://aistudio.google.com/app/api-keys) 免費申請 API Key，"
                     "並貼入 `.env` 的 `GEMINI_API_KEY=` 欄位中，即可啟用真實的智慧 AI 對話與新聞檢索功能！"
                 )
-
             # 1. 優先嘗試 Google Antigravity / GenAI SDK 進行推論
             try:
                 from google import genai
+                from google.genai import types
                 client = genai.Client(api_key=api_key)
                 
                 # 構建帶有 Context 的 Prompt
@@ -67,12 +68,19 @@ class AntigravityAgentManager:
                 
                 full_prompt = f"{history_text}使用者: {prompt}\nAI:" if history_text else prompt
                 
-                # 使用最新 Gemini 2.5 Flash / Gemini 2.0 Flash 模型進行推論
+                # 若設定檔啟用連網搜尋，配置 Google Search Grounding 工具
+                config = None
+                if settings.ENABLE_WEB_SEARCH:
+                    config = types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearch())]
+                    )
+                
+                # 使用 Gemini 2.5 Flash / Gemini 2.0 Flash 模型進行即時檢索與推論
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
                     contents=full_prompt,
+                    config=config
                 )
-                
                 reply_text = response.text.strip()
                 session["history"].append({"user": prompt, "agent": reply_text})
                 return reply_text

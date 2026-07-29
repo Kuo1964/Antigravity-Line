@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     LINE_CHANNEL_ACCESS_TOKEN: str = ""
     ALLOWED_USER_IDS: str = ""  # 逗號分隔的 Line User ID 字串
     GEMINI_API_KEY: str = ""
+    ENABLE_WEB_SEARCH: bool = True  # 是否開啟 Google Search Grounding 即時連網搜尋功能
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
