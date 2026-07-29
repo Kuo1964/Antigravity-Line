@@ -7,9 +7,10 @@
 ## 🌟 核心特色
 
 1. **雙向互動與控制**：在 Line 上發送 Prompt 即可觸發 Antigravity Agent 推論與執行任務。
-2. **非同步推播模式 (Async Push Message)**：接收 Webhook 後秒回 200 OK，任務完成後主動推播結果。
-3. **白名單安全性驗證**：只有指定 `ALLOWED_USER_IDS` 的 Line 帳號才可以下達控制指令。
-4. **Session 記憶維護**：自動延續使用者的對話 context，並提供 `/reset` 等控制指令。
+2. **Google Search Grounding (即時連網搜尋)**：原生整合 Gemini 2.5/2.0 即時 Google 搜尋能力，查詢最新頭條新聞與即時資訊。
+3. **非同步推播模式 (Async Push Message)**：接收 Webhook 後秒回 200 OK，任務完成後主動推播結果。
+4. **白名單安全性驗證**：只有指定 `ALLOWED_USER_IDS` 的 Line 帳號才可以下達控制指令。
+5. **Session 記憶維護**：自動延續使用者的對話 context，並提供 `/reset` 等控制指令。
 
 ---
 
@@ -37,7 +38,7 @@
 ## 🛠️ 控制指令列表
 
 在 Line 聊天視窗中輸入：
-- `任何 Prompt 敘述`：直接觸發 Antigravity Agent 執行任務。
+- `任何 Prompt 敘述`：直接觸發 Antigravity Agent 執行任務與即時網路搜尋。
 - `/status`：查詢當前系統與 Agent 任務狀態。
 - `/reset` 或 `/clear`：重置並清除目前的對話歷史紀錄。
 - `/help`：顯示系統說明選單。
@@ -74,7 +75,7 @@ source venv/bin/activate
 # 在虛擬環境中安裝依賴套件
 pip install -r requirements.txt
 
-# 啟動 FastAPI 服務 (加上 --reload-dir app 防止監聽 venv 資料夾死迴圈)
+# 啟動 FastAPI 服務
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
 ```
 
