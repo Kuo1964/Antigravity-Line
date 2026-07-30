@@ -1,5 +1,7 @@
 import os
+import re
 import time
+import ctypes
 import logging
 import subprocess
 
@@ -7,11 +9,12 @@ logger = logging.getLogger(__name__)
 
 def focus_line_app() -> bool:
     """
-    開啟、還原並聚焦 macOS 版 LINE 桌面應用程式 (解決視窗最小化問題)
+    喚醒、還原並聚焦 LINE 桌面版視窗
+    :return: 是否成功聚焦視窗
     """
     logger.info("正在喚醒、還原並聚焦 LINE 桌面版...")
-    try:
-        applescript_cmd = '''
+    applescript_cmd = '''
+    with timeout of 10 seconds
         tell application "LINE"
             reopen
             activate
@@ -24,8 +27,10 @@ def focus_line_app() -> bool:
                 end try
             end tell
         end tell
-        '''
-        res = subprocess.run(["osascript", "-e", applescript_cmd], capture_output=True, text=True)
+    end timeout
+    '''
+    try:
+        res = subprocess.run(["osascript", "-e", applescript_cmd], capture_output=True, text=True, timeout=12)
         if res.returncode == 0:
             time.sleep(1.0)
             return True
@@ -35,9 +40,6 @@ def focus_line_app() -> bool:
     except Exception as e:
         logger.error(f"聚焦 LINE App 異常: {e}")
         return False
-
-import re
-import ctypes
 
 # 載入 macOS 原生 CoreGraphics C 動態庫 (零第三方依賴)
 try:
@@ -78,48 +80,23 @@ except Exception as e:
     def mac_native_click(x: int, y: int) -> None:
         logger.error(f"無法發送點擊，CoreGraphics 不可用: ({x}, {y})")
 
-
-def get_line_window_position() -> tuple[int, int]:
-    """
-    取得 LINE 桌面版主視窗在螢幕上的 (X, Y) 絕對座標
-    """
-    cmd = '''
-    tell application "System Events"
-        tell process "LINE"
-            set winPos to position of window 1
-            return (item 1 of winPos as string) & "," & (item 2 of winPos as string)
-        end tell
-    end tell
-    '''
-    try:
-        res = subprocess.run(["osascript", "-e", cmd], capture_output=True, text=True)
-        if res.returncode == 0 and res.stdout.strip():
-            numbers = re.findall(r'-?\d+', res.stdout)
-            if len(numbers) >= 2:
-                x, y = int(numbers[0]), int(numbers[1])
-                logger.info(f"成功取得 LINE 視窗座標: ({x}, {y})")
-                return x, y
-    except Exception as e:
-        logger.warning(f"取得 LINE 視窗座標異常: {e}")
-
-    logger.warning("無法動態獲取 LINE 視窗座標，使用預設座標 (100, 100)")
-    return 100, 100
-
 def get_line_window_bounds() -> tuple[int, int, int, int]:
     """
     取得 LINE 桌面版主視窗在螢幕上的 (X, Y, Width, Height) 絕對座標與尺寸
     """
     cmd = '''
-    tell application "System Events"
-        tell process "LINE"
-            set winPos to position of window 1
-            set winSize to size of window 1
-            return (item 1 of winPos as string) & "," & (item 2 of winPos as string) & "," & (item 1 of winSize as string) & "," & (item 2 of winSize as string)
+    with timeout of 5 seconds
+        tell application "System Events"
+            tell process "LINE"
+                set winPos to position of window 1
+                set winSize to size of window 1
+                return (item 1 of winPos as string) & "," & (item 2 of winPos as string) & "," & (item 1 of winSize as string) & "," & (item 2 of winSize as string)
+            end tell
         end tell
-    end tell
+    end timeout
     '''
     try:
-        res = subprocess.run(["osascript", "-e", cmd], capture_output=True, text=True)
+        res = subprocess.run(["osascript", "-e", cmd], capture_output=True, text=True, timeout=8)
         if res.returncode == 0 and res.stdout.strip():
             numbers = re.findall(r'-?\d+', res.stdout)
             if len(numbers) >= 4:
@@ -151,40 +128,41 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         search_y = win_y + 95
         logger.info(f"步驟 A: 原生點擊全域搜尋框座標 ({search_x}, {search_y})")
 
-        # 原生點擊全域搜尋框
         mac_native_click(search_x, search_y)
         time.sleep(0.5)
 
         # 2. 寫入 target_name 到剪貼簿，清空搜尋框並貼上
         applescript_search = f'''
         set the clipboard to "{target_name}"
-        tell application "LINE"
-            activate
-        end tell
-        tell application "System Events"
-            tell process "LINE"
-                set frontmost to true
-                delay 0.3
-                keystroke "a" using {{command down}}
-                delay 0.2
-                key code 51 -- Backspace
-                delay 0.2
-                keystroke "v" using {{command down}}
-                delay 1.5 -- 等待搜尋結果選單顯示
+        with timeout of 10 seconds
+            tell application "LINE"
+                activate
             end tell
-        end tell
+            tell application "System Events"
+                tell process "LINE"
+                    set frontmost to true
+                    delay 0.3
+                    keystroke "a" using {{command down}}
+                    delay 0.2
+                    key code 51 -- Backspace
+                    delay 0.2
+                    keystroke "v" using {{command down}}
+                    delay 1.5 -- 等待搜尋結果選單顯示
+                end tell
+            end tell
+        end timeout
         '''
-        res_search = subprocess.run(["osascript", "-e", applescript_search], capture_output=True, text=True)
+        res_search = subprocess.run(["osascript", "-e", applescript_search], capture_output=True, text=True, timeout=12)
         if res_search.returncode != 0:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        # 3. 實體點擊搜尋結果清單中的第 1 個結果項目 (Private) 座標: (win_x + 220, win_y + 185)
+        # 3. 實體點擊搜尋結果清單中的第 1 個結果項目座標: (win_x + 220, win_y + 185)
         result_item_x = win_x + 220
         result_item_y = win_y + 185
         logger.info(f"步驟 B: 原生實體點擊搜尋結果 '{target_name}' 項目座標 ({result_item_x}, {result_item_y})")
         mac_native_click(result_item_x, result_item_y)
-        time.sleep(1.2) # 等待右側聊天室順利切換為 Private
+        time.sleep(1.2)
 
         # 4. 點擊右側聊天室訊息輸入框座標: (win_x + win_w//2 + 100, win_y + win_h - 60)
         chat_input_x = win_x + (win_w // 2) + 100
@@ -193,7 +171,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
 
-        # 5. 在確定進入目標聊天室後，重新將早安圖片寫入剪貼簿！
+        # 5. 重新將早安圖片寫入剪貼簿
         if image_path and os.path.exists(image_path):
             from app.services.image_crawler import copy_image_to_clipboard
             logger.info(f"步驟 D: 將早安圖片寫入剪貼簿 ({image_path})...")
@@ -202,23 +180,23 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
 
         logger.info("步驟 E: 於目標聊天室貼上早安圖片發送中...")
         send_img_cmd = '''
-        tell application "LINE"
-            activate
-        end tell
-        tell application "System Events"
-            tell process "LINE"
-                set frontmost to true
-                delay 0.3
-                -- Cmd + V 貼上剪貼簿中的早安圖片
-                keystroke "v" using {command down}
-                delay 1.5 -- 等待圖片預覽顯示
-                -- 按下 Return 發送圖片
-                key code 36 -- Return
-                delay 0.5
+        with timeout of 10 seconds
+            tell application "LINE"
+                activate
             end tell
-        end tell
+            tell application "System Events"
+                tell process "LINE"
+                    set frontmost to true
+                    delay 0.3
+                    keystroke "v" using {command down}
+                    delay 1.5
+                    key code 36 -- Return
+                    delay 0.5
+                end tell
+            end tell
+        end timeout
         '''
-        res_send = subprocess.run(["osascript", "-e", send_img_cmd], capture_output=True, text=True)
+        res_send = subprocess.run(["osascript", "-e", send_img_cmd], capture_output=True, text=True, timeout=12)
         if res_send.returncode == 0:
             logger.info(f"成功於 LINE 桌面版開啟 '{target_name}' 並完成早安圖片發送！")
             return True
@@ -226,16 +204,6 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"貼上圖片發送失敗: {res_send.stderr}")
             return False
 
-
-
     except Exception as e:
         logger.error(f"LINE 桌面版自動化操作失敗: {e}")
         return False
-
-
-
-
-
-
-
-

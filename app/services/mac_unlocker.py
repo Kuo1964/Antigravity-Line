@@ -52,6 +52,11 @@ def unlock_mac(password: str) -> bool:
     """
     wake_mac_screen()
 
+    # 若螢幕當前未鎖定，直接返回，絕不重複發送密碼 keystroke
+    if not is_mac_locked():
+        logger.info("檢測到 macOS 螢幕未處於鎖定狀態，跳過輸入密碼步驟。")
+        return True
+
     if not password:
         logger.warning("未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
         return True
@@ -59,21 +64,24 @@ def unlock_mac(password: str) -> bool:
     logger.info("開始模擬輸入密碼進行 macOS 螢幕解鎖...")
     try:
         applescript_cmd = f'''
-        tell application "System Events"
-            key code 123 -- 模擬按左方向鍵喚醒/激活密碼輸入框
-            delay 0.5
-            keystroke "{password}"
-            delay 0.3
-            key code 36 -- 按下 Return (Enter) 鍵
-        end tell
+        with timeout of 5 seconds
+            tell application "System Events"
+                key code 123 -- 模擬按左方向鍵喚醒/激活密碼輸入框
+                delay 0.5
+                keystroke "{password}"
+                delay 0.3
+                key code 36 -- 按下 Return (Enter) 鍵
+            end tell
+        end timeout
         '''
-        subprocess.run(["osascript", "-e", applescript_cmd], check=True)
-        time.sleep(2.0)
+        subprocess.run(["osascript", "-e", applescript_cmd], check=True, timeout=8)
+        time.sleep(1.5)
         logger.info("macOS 解鎖指令完成發送。")
         return True
     except Exception as e:
         logger.error(f"模擬解鎖密碼失敗: {e}")
         return False
+
 
 def detect_mac_screen_state() -> dict:
     """
