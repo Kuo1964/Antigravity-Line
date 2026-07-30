@@ -58,7 +58,6 @@ def unlock_mac(password: str) -> bool:
 
     logger.info("開始模擬輸入密碼進行 macOS 螢幕解鎖...")
     try:
-        # AppleScript 模擬按鍵激活輸入框並輸入密碼按下 Enter
         applescript_cmd = f'''
         tell application "System Events"
             key code 123 -- 模擬按左方向鍵喚醒/激活密碼輸入框
@@ -75,3 +74,34 @@ def unlock_mac(password: str) -> bool:
     except Exception as e:
         logger.error(f"模擬解鎖密碼失敗: {e}")
         return False
+
+def detect_mac_screen_state() -> dict:
+    """
+    檢測並記錄發送前 macOS 螢幕是否處於鎖定或睡眠狀態
+    """
+    locked = is_mac_locked()
+    logger.info(f"發送前檢測 macOS 螢幕原始狀態: {'[鎖定/睡眠中]' if locked else '[未鎖定使用中]'}")
+    return {"was_locked": locked}
+
+def restore_mac_screen_state(state: dict) -> bool:
+    """
+    任務執行完畢後，將 macOS 螢幕恢復至執行前的原始狀態
+    :param state: 執行前 detect_mac_screen_state() 記錄的狀態字典
+    """
+    was_locked = state.get("was_locked", False)
+    
+    if was_locked:
+        logger.info("檢測到執行前 Mac 處於鎖定/睡眠狀態，開始自動復原鎖定...")
+        try:
+            time.sleep(1.0)
+            subprocess.run(["pmset", "displaysleepnow"], check=False)
+            logger.info("已成功恢復發送前狀態：Mac 顯示器已重新睡眠並鎖定 🔐")
+            return True
+        except Exception as e:
+            logger.error(f"恢復螢幕睡眠鎖定失敗: {e}")
+            return False
+    else:
+        logger.info("檢測到執行前 Mac 為未鎖定使用中，保持目前螢幕開啟狀態，不干擾用戶作業 ✨")
+        return True
+
+
