@@ -19,11 +19,12 @@ sudo pmset repeat wake MTWRFSU 08:58:00,21:28:00
 # 2. 自動配置 crontab
 echo -e "\n[2/2] 正在配置 macOS crontab 每日定時任務..."
 
-CRON_JOB_1="0 9 * * * cd \"$PROJECT_DIR\" && PYTHONPATH=. ./venv/bin/python scripts/test_private_lock_send.py --target \"Sharon Chou\" --countdown 1 >> \"$PROJECT_DIR/cron.log\" 2>&1"
-CRON_JOB_2="30 21 * * * cd \"$PROJECT_DIR\" && PYTHONPATH=. ./venv/bin/python scripts/test_private_lock_send.py --target \"郭泊彤\" --countdown 1 >> \"$PROJECT_DIR/cron.log\" 2>&1"
+CRON_JOB_1="0 9 * * * cd \"$PROJECT_DIR\" && PYTHONPATH=. ./venv/bin/python scripts/send_daily_morning_card.py --target \"Sharon Chou\" --countdown 1 >> \"$PROJECT_DIR/cron.log\" 2>&1"
+CRON_JOB_2="30 21 * * * cd \"$PROJECT_DIR\" && PYTHONPATH=. ./venv/bin/python scripts/send_daily_morning_card.py --target \"郭泊彤\" --countdown 1 >> \"$PROJECT_DIR/cron.log\" 2>&1"
 
 # 備份原有 crontab 並追加新任務 (避開重複)
-(crontab -l 2>/dev/null | grep -v "test_private_lock_send.py"; echo "$CRON_JOB_1"; echo "$CRON_JOB_2") | crontab -
+(crontab -l 2>/dev/null | grep -v "send_daily_morning_card.py" | grep -v "test_private_lock_send.py"; echo "$CRON_JOB_1"; echo "$CRON_JOB_2") | crontab -
+
 
 echo "============================================================"
 echo " 🎉 設定完成！"
