@@ -157,12 +157,17 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        # 3. 實體點擊搜尋結果清單中的第 1 個結果項目座標: (win_x + 220, win_y + 185)
+        # 3. 實體點擊搜尋結果清單中的第 1 個結果項目座標，並按 Return 雙重確保開啟聊天室
         result_item_x = win_x + 220
         result_item_y = win_y + 185
-        logger.info(f"步驟 B: 原生實體點擊搜尋結果 '{target_name}' 項目座標 ({result_item_x}, {result_item_y})")
+        logger.info(f"步驟 B: 原生點擊搜尋結果 '{target_name}' 項目座標 ({result_item_x}, {result_item_y}) 並開啟聊天室")
         mac_native_click(result_item_x, result_item_y)
-        time.sleep(1.2)
+        time.sleep(0.5)
+        
+        # 鍵盤 Return (Key Code 36) 雙重保險，確保必然開啟第一筆搜尋結果
+        subprocess.run(["osascript", "-e", 'with timeout of 5 seconds\ntell application "System Events" to key code 36\nend timeout'], capture_output=True)
+        time.sleep(1.0)
+
 
         # 4. 點擊右側聊天室訊息輸入框座標: (win_x + win_w//2 + 100, win_y + win_h - 60)
         chat_input_x = win_x + (win_w // 2) + 100
