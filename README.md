@@ -8,19 +8,30 @@
 
 1. **雙向互動與控制**：在 Line 上發送 Prompt 即可觸發 Antigravity Agent 推論與執行任務。
 2. **Google Search Grounding (即時連網搜尋)**：原生整合 Gemini 2.5/2.0 即時 Google 搜尋能力，查詢最新頭條新聞與即時資訊。
-3. **一鍵式自動啟動**：內建 `start.sh` 腳本，自動同時啟動 FastAPI 服務與 ngrok 外網轉接。
-4. **非同步推播模式 (Async Push Message)**：接收 Webhook 後秒回 200 OK，任務完成後主動推播結果。
-5. **白名單安全性驗證**：只有指定 `ALLOWED_USER_IDS` 的 Line 帳號才可以下達控制指令。
-6. **Session 記憶維護**：自動延續使用者的對話 context，並提供 `/reset` 等控制指令。
+3. **休眠定時硬體喚醒與早安推播**：支援 macOS 電腦休眠狀態下自動硬體喚醒，並自動產生早安圖文推播至 Line。
+4. **一鍵式自動啟動**：內建 `start.sh` 腳本，自動同時啟動 FastAPI 服務與 ngrok 外網轉接。
+5. **非同步推播模式 (Async Push Message)**：接收 Webhook 後秒回 200 OK，任務完成後主動推播結果。
+6. **白名單安全性驗證**：只有指定 `ALLOWED_USER_IDS` 的 Line 帳號才可以下達控制指令。
+7. **Session 記憶維護**：自動延續使用者的對話 context，並提供 `/reset` 等控制指令。
 
 ---
 
-## 🚀 快速一鍵啟動 (推薦)
+## 🚀 快速一鍵啟動
 
 只需在專案根目錄下執行一鍵啟動腳本，即可同時自動啟動 FastAPI 服務與 ngrok 外網轉接：
 
 ```bash
 ./start.sh
+```
+
+---
+
+## ⏰ 休眠狀態下自動硬體喚醒設定
+
+若需要在 Mac 電腦休眠狀態下自動喚醒並發送早安訊息，請執行以下腳本：
+
+```bash
+./schedule_wake.sh
 ```
 
 ---
