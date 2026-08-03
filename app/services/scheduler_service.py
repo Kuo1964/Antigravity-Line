@@ -9,6 +9,27 @@ from app.services.line_desktop_controller import search_and_send_image
 
 logger = logging.getLogger(__name__)
 
+from datetime import datetime, timedelta
+
+def schedule_next_mac_wake(target_name: str) -> None:
+    """
+    任務完成後，自動使用 pmset 為下一個任務預約 macOS 硬體喚醒
+    """
+    try:
+        now = datetime.now()
+        if "Sharon" in target_name:
+            next_wake = now.replace(hour=21, minute=28, second=0)
+            if next_wake <= now:
+                next_wake += timedelta(days=1)
+        else:
+            next_wake = (now + timedelta(days=1)).replace(hour=8, minute=58, second=0)
+            
+        time_str = next_wake.strftime("%m/%d/%Y %H:%M:%S")
+        logger.info(f"正在為下一次發送任務自動預約 macOS 硬體喚醒 ({time_str})...")
+        subprocess.run(["sudo", "pmset", "schedule", "wake", time_str], check=False)
+    except Exception as e:
+        logger.warning(f"自動預約硬體喚醒失敗: {e}")
+
 def run_good_morning_workflow(target_name: str = "Private", mac_password: str = "") -> Dict[str, Any]:
     """
     執行完整的早安圖片自動發送工作流程，並於發送完成後自動恢復發送前的螢幕狀態 (鎖定/睡眠或開啟)
@@ -63,9 +84,13 @@ def run_good_morning_workflow(target_name: str = "Private", mac_password: str = 
             logger.error(result["message"])
 
     finally:
-        # 5. 無論成功或異常，均自動將 macOS 螢幕恢復至執行前的原始狀態！
+        # 5. 自動預約下一次發送時間點的 macOS 硬體喚醒
+        schedule_next_mac_wake(target_name)
+
+        # 6. 無論成功或異常，均自動將 macOS 螢幕恢復至執行前的原始狀態！
         logger.info("步驟 5/5: 正在將 macOS 螢幕恢復至發送前狀態...")
         restore_mac_screen_state(initial_state)
 
     return result
+
 
