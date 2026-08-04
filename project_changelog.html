@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity-Line 專案開發歷程與架構摘要報告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 31, 49, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-accent: #00f2fe;
+            --secondary-accent: #4facfe;
+            --success-color: #00e676;
+            --warning-color: #ffab00;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --timeline-line: rgba(79, 172, 254, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(79, 172, 254, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(0, 242, 254, 0.08) 0px, transparent 50%);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2.5rem 1.5rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .logo-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3.5rem;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(79, 172, 254, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .section-heading {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--timeline-line);
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 3.5rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--timeline-line);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 2.5rem;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -2rem;
+            top: 4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary-accent);
+            box-shadow: 0 0 12px var(--primary-accent);
+            border: 3px solid var(--bg-color);
+        }
+
+        .timeline-dot.success { background: var(--success-color); box-shadow: 0 0 12px var(--success-color); }
+        .timeline-dot.warning { background: var(--warning-color); box-shadow: 0 0 12px var(--warning-color); }
+
+        .timeline-content {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 1.5rem;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .timeline-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-feat { background: rgba(0, 242, 254, 0.15); color: var(--primary-accent); border: 1px solid rgba(0, 242, 254, 0.3); }
+        .badge-fix { background: rgba(255, 171, 0, 0.15); color: var(--warning-color); border: 1px solid rgba(255, 171, 0, 0.3); }
+        .badge-verify { background: rgba(0, 230, 118, 0.15); color: var(--success-color); border: 1px solid rgba(0, 230, 118, 0.3); }
+
+        .timeline-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .timeline-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .timeline-list li {
+            position: relative;
+            padding-left: 1.25rem;
+            margin-bottom: 0.4rem;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+
+        .timeline-list li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--secondary-accent);
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--card-border);
+        }
+
+        code {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="logo-title">Antigravity-Line 專案開發歷程與架構摘要</h1>
+            <p class="subtitle">全自動雙時區早安圖發送系統 · macOS 睡眠自動喚醒與狀態復原架構</p>
+        </header>
+
+        <!-- Implementation Plan & Walkthrough 摘要 Grid -->
+        <h2 class="section-heading">📋 架構與測試摘要 (Plan & Walkthrough)</h2>
+        <div class="summary-grid">
+            <div class="glass-card">
+                <div class="card-header">
+                    <span class="card-icon">🚀</span>
+                    <h3 class="card-title">雙時區每日定時發送</h3>
+                </div>
+                <p class="timeline-desc">
+                    支援跨時區自動化發送：<br>
+                    ▸ <b>任務一 (Sharon Chou)</b>：台灣時間每日 09:00<br>
+                    ▸ <b>任務二 (郭泊彤)</b>：美東時間每日 09:30 (台灣 21:30)<br>
+                    ▸ <b>網路圖片</b>：每日自動連線爬取『早安 一切順心』花草圖片。
+                </p>
+            </div>
+
+            <div class="glass-card">
+                <div class="card-header">
+                    <span class="card-icon">🔐</span>
+                    <h3 class="card-title">睡眠自動喚醒與狀態復原</h3>
+                </div>
+                <p class="timeline-desc">
+                    ▸ <b>硬體喚醒</b>：<code>pmset</code> 每日 08:58 與 21:28 自動喚醒。<br>
+                    ▸ <b>密碼解鎖</b>：<code>caffeinate</code> 與 <code>mac_unlocker</code> 模擬輸入解鎖。<br>
+                    ▸ <b>睡眠復原</b>：任務發送後自動執行 <code>pmset displaysleepnow</code> 重新進入睡眠與鎖定！
+                </p>
+            </div>
+
+            <div class="glass-card">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <h3 class="card-title">開機背景防護 (launchd)</h3>
+                </div>
+                <p class="timeline-desc">
+                    ▸ <b>LaunchAgent 守護</b>：<code>com.antigravity.linebridge.plist</code> 配置 <code>KeepAlive: ON</code>。<br>
+                    ▸ <b>重開機無縫運作</b>：即使電腦重新開機，背景守護進程自動載入，24/7 不間斷發送。
+                </p>
+            </div>
+        </div>
+
+        <!-- 開發變動歷程 (Timeline) -->
+        <h2 class="section-heading">🕒 開發變動歷程 (This Session Change Logs)</h2>
+        <div class="timeline" id="changelog-timeline">
+            
+            <!-- 變動 1 -->
+            <div class="timeline-item">
+                <div class="timeline-dot success"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">1. 實現 macOS 鎖定自動喚醒解鎖、網路中文早安圖即時抓取與 LINE 控制</span>
+                        <span class="badge badge-feat">Feature</span>
+                    </div>
+                    <p class="timeline-desc">建立核心架構與零依賴 macOS 自動化模組。</p>
+                    <ul class="timeline-list">
+                        <li>新增 <code>mac_unlocker.py</code> 實現 caffeinate 喚醒與密碼自動解鎖。</li>
+                        <li>新增 <code>image_crawler.py</code> 實作 Bing 網路即時搜尋『早安圖 一切順心』花草長輩圖下載。</li>
+                        <li>新增 <code>line_desktop_controller.py</code> 使用 CoreGraphics C API 進行視窗座標點擊與貼上。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 變動 2 -->
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">2. 實現螢幕狀態記憶與發送後自動復原睡眠機制</span>
+                        <span class="badge badge-feat">Feature</span>
+                    </div>
+                    <p class="timeline-desc">確保執行發送前若為睡眠/鎖定，發送完畢後自動恢復睡眠鎖定狀態。</p>
+                    <ul class="timeline-list">
+                        <li>新增 <code>detect_mac_screen_state()</code> 記憶原始狀態。</li>
+                        <li>新增 <code>restore_mac_screen_state()</code> 呼叫 <code>pmset displaysleepnow</code> 恢復睡眠鎖定。</li>
+                        <li>發送流程加入 <code>try...finally</code> 確保 100% 執行狀態復原。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 變動 3 -->
+            <div class="timeline-item">
+                <div class="timeline-dot warning"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">3. 修復未鎖定狀態下誤發密碼導致 AppleEvent -1712 逾時卡死</span>
+                        <span class="badge badge-fix">Bug Fix</span>
+                    </div>
+                    <p class="timeline-desc">解決當螢幕開啟無密碼頁時 System Events 阻塞的問題。</p>
+                    <ul class="timeline-list">
+                        <li>加入 <code>is_mac_locked()</code> 前置判斷，若螢幕未鎖定直接跳過密碼輸入。</li>
+                        <li>在所有 AppleScript 外部包覆 <code>with timeout of 5/10 seconds</code> 超時防禦。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 變動 4 -->
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">4. 部署 macOS launchd 重開機背景自動啟動守護進程</span>
+                        <span class="badge badge-feat">Feature</span>
+                    </div>
+                    <p class="timeline-desc">實現電腦重新開機後自動背景載入，無需手動啟動。</p>
+                    <ul class="timeline-list">
+                        <li>建立 <code>com.antigravity.linebridge.plist</code> 註冊為 macOS 官方 LaunchAgent。</li>
+                        <li>撰寫 <code>scripts/setup_daily_schedule.sh</code> 一鍵配置開機啟動與 crontab 排程。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 變動 5 -->
+            <div class="timeline-item">
+                <div class="timeline-dot warning"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">5. 新增動態自動循環預約 macOS 硬體喚醒 (pmset schedule)</span>
+                        <span class="badge badge-fix">Optimization</span>
+                    </div>
+                    <p class="timeline-desc">解決 macOS <code>pmset repeat</code> 僅能維持單一每日時間點喚醒的限制。</p>
+                    <ul class="timeline-list">
+                        <li>新增 <code>schedule_next_mac_wake()</code> 函數。</li>
+                        <li>每次任務執行完畢後，自動預約下一個時間點 (08:58 或 21:28) 的硬體喚醒。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 變動 6 -->
+            <div class="timeline-item">
+                <div class="timeline-dot success"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">6. 建立動態 HTML 開發歷程與更新摘要自動同步機制</span>
+                        <span class="badge badge-verify">Documentation</span>
+                    </div>
+                    <p class="timeline-desc">建立可直接開啟之 HTML 開發報告，並支援未來更新時自動擴充。</p>
+                    <ul class="timeline-list">
+                        <li>產出 <code>project_changelog.html</code> 供視覺化瀏覽。</li>
+                        <li>建立 <code>scripts/update_changelog.py</code> 腳本自動更新變更紀錄。</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+        <footer>
+            <p>Antigravity AI Pair Programming Agent · 自動更新於 <span id="update-time">2026-08-04</span></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('update-time').innerText = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+    </script>
+</body>
+</html>
