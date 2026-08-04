@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Implementation Plan - Antigravity-Line</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 31, 49, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-accent: #00f2fe;
+            --secondary-accent: #4facfe;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.7;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(16px);
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-accent);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            transition: opacity 0.2s;
+        }
+
+        .back-btn:hover { opacity: 0.8; }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.75rem;
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: var(--secondary-accent);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p, li { color: #cbd5e1; font-size: 1rem; }
+        ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: var(--primary-accent);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            border: 1px solid var(--card-border);
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(79, 172, 254, 0.1);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../project_changelog.html" class="back-btn">← 返回專案總覽 (Project Changelog)</a>
+        
+        <h1>完整設計計畫 (Implementation Plan)</h1>
+        
+        <h2>📌 雙時區 LINE 早安圖定時自動發送與 Mac 睡眠狀態自動復原系統</h2>
+        <p>本計畫滿足用戶的核心需求：</p>
+        <ul>
+            <li><b>任務一</b>：台灣時間 (UTC+8) <b>每日 09:00</b> 發送早安圖片給 LINE 好友 <code>Sharon Chou</code>。</li>
+            <li><b>任務二</b>：美東時間 (UTC-4) <b>每日 09:30</b>（對應台灣時間每日 <b>21:30</b>）發送早安圖片給 LINE 好友 <code>郭泊彤</code>。</li>
+            <li><b>無縫睡眠與鎖定處理</b>：無論 Mac 處於深度睡眠、休眠或螢幕鎖定狀態，均能自動喚醒與恢復狀態。</li>
+            <li><b>HTML 開發歷程報告</b>：產出視覺化報告，並於後續每次更新時自動修改維護。</li>
+        </ul>
+
+        <h2>📅 定時任務與喚醒時程表</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>任務標的</th>
+                    <th>目標好友</th>
+                    <th>對應台灣時間</th>
+                    <th>macOS 硬體自動喚醒時間</th>
+                    <th>執行後動作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>任務一</td>
+                    <td><b>Sharon Chou</b></td>
+                    <td>每日 09:00:00</td>
+                    <td>每日 08:58:00</td>
+                    <td>100% 恢復執行前原始狀態 (自動睡回/鎖定)</td>
+                </tr>
+                <tr>
+                    <td>任務二</td>
+                    <td><b>郭泊彤</b></td>
+                    <td>每日 21:30:00</td>
+                    <td>每日 21:28:00</td>
+                    <td>100% 恢復執行前原始狀態 (自動睡回/鎖定)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>🔄 全自動發送與狀態復原流程</h2>
+        <ol>
+            <li><b>macOS RTC 喚醒</b>：每日 08:58 與 21:28 由硬體晶片自動點亮 Mac 螢幕。</li>
+            <li><b>狀態記憶</b>：<code>detect_mac_screen_state()</code> 紀錄發送前的鎖定/睡眠狀態。</li>
+            <li><b>喚醒與解鎖</b>：<code>mac_unlocker</code> 進行 caffeinate 喚醒與密碼解鎖（若未鎖定則跳過密碼）。</li>
+            <li><b>網路圖片抓取</b>：Bing Image 搜尋爬取『早安 一切順心』當日最新長輩祝賀圖。</li>
+            <li><b>LINE 桌面版發送</b>：CoreGraphics 原生點擊 + 鍵盤 Return 雙重保險，發送圖片至指定對話框。</li>
+            <li><b>自動睡回鎖定</b>：<code>restore_mac_screen_state()</code> 呼叫 <code>pmset displaysleepnow</code> 自動將 Mac 恢復至原先的睡眠鎖定狀態！</li>
+        </ol>
+    </div>
+</body>
+</html>
