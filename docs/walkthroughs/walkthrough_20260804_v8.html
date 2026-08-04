@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walkthrough - Antigravity-Line</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 31, 49, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-accent: #00f2fe;
+            --success-color: #00e676;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.7;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(16px);
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-accent);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            transition: opacity 0.2s;
+        }
+
+        .back-btn:hover { opacity: 0.8; }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.75rem;
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: var(--success-color);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p, li { color: #cbd5e1; font-size: 1rem; }
+        ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: var(--primary-accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../project_changelog.html" class="back-btn">← 返回專案總覽 (Project Changelog)</a>
+        
+        <h1>完整驗證說明指南 (Walkthrough)</h1>
+        
+        <h2>🧪 實機驗證成果與功能總覽</h2>
+        <p>全套系統已通過多次實機測試驗證，順利完成以下重點運作邏輯：</p>
+        <ul>
+            <li><b>macOS 鎖定自動喚醒解鎖</b>：<code>caffeinate</code> 點亮螢幕 + <code>mac_unlocker</code> 輸入密碼自動解鎖。</li>
+            <li><b>網路祝賀圖片抓取</b>：Bing Image Search 線上爬取帶有『早安 一切順心』中文文字的精美長輩圖。</li>
+            <li><b>LINE 桌面版精確發送</b>：CoreGraphics 點擊 + 鍵盤 Return 雙重保險，發送至指定目標。</li>
+            <li><b>螢幕狀態記憶與睡眠自動復原</b>：若執行前為睡眠/鎖定，發送完畢後自動執行 <code>pmset displaysleepnow</code> 恢復睡眠鎖定！</li>
+        </ul>
+
+        <h2>🚀 實機鎖定測試步驟 (Private 測試)</h2>
+        <ol>
+            <li>執行測試命令：<code>PYTHONPATH=. ./venv/bin/python scripts/test_private_lock_send.py --target Private --countdown 10</code></li>
+            <li>按下 <code>Ctrl + Cmd + Q</code> 鎖定 Mac。</li>
+            <li>觀察系統自動喚醒、解鎖、下載圖片發送給 Private，並在發送完成後<b>自動熄滅螢幕睡回</b>！</li>
+        </ol>
+
+        <h2>📅 每日雙時區自動化部署</h2>
+        <p>一鍵安裝命令：<code>bash scripts/setup_daily_schedule.sh</code></p>
+        <ul>
+            <li><b>LaunchAgent 重開機自動啟動</b>：<code>com.antigravity.linebridge.plist</code> 註冊為 macOS 背景守護進程，每次重開機自動載入！</li>
+            <li><b>自動動態預約喚醒</b>：每次任務執行完畢後，系統自動預約下一個時間點 (08:58 或 21:28) 的硬體喚醒！</li>
+        </ul>
+    </div>
+</body>
+</html>
