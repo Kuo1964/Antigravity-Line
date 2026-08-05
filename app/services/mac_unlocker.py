@@ -44,43 +44,40 @@ def wake_mac_screen() -> None:
     except Exception as e:
         logger.error(f"喚醒螢幕時發生錯誤: {e}")
 
-def unlock_mac(password: str) -> bool:
+def unlock_mac(password: str = None) -> bool:
     """
-    喚醒並自動解鎖 macOS 螢幕
-    :param password: macOS 帳號解鎖密碼
-    :return: 是否成功執行解鎖動作
+    喚醒並解鎖 macOS 螢幕 (支援開機登入畫面盲打密碼)
+    :param password: Mac 管理員密碼
+    :return: 是否成功執行喚醒/解鎖
     """
-    wake_mac_screen()
-
-    # 若螢幕當前未鎖定，直接返回，絕不重複發送密碼 keystroke
-    if not is_mac_locked():
-        logger.info("檢測到 macOS 螢幕未處於鎖定狀態，跳過輸入密碼步驟。")
-        return True
-
-    if not password:
-        logger.warning("未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
-        return True
-
-    logger.info("開始模擬輸入密碼進行 macOS 螢幕解鎖...")
+    pwd = password or os.getenv("MAC_PASSWORD", "")
+    logger.info("發送喚醒訊號 (caffeinate)...")
     try:
+        subprocess.run(["caffeinate", "-u", "-t", "5"], check=False)
+        time.sleep(2.0)
+    except Exception as e:
+        logger.warning(f"caffeinate 喚醒異常: {e}")
+
+    # 盲打密碼與 Return 鍵解鎖 (針對開機登入畫面與鎖定畫面)
+    if pwd:
+        logger.info("正在透過 AppleScript 傳送解鎖密碼與 Return 鍵...")
         applescript_cmd = f'''
-        with timeout of 5 seconds
+        with timeout of 10 seconds
             tell application "System Events"
-                key code 123 -- 模擬按左方向鍵喚醒/激活密碼輸入框
+                keystroke "{pwd}"
                 delay 0.5
-                keystroke "{password}"
-                delay 0.3
-                key code 36 -- 按下 Return (Enter) 鍵
+                key code 36
             end tell
         end timeout
         '''
-        subprocess.run(["osascript", "-e", applescript_cmd], check=True, timeout=8)
-        time.sleep(1.5)
-        logger.info("macOS 解鎖指令完成發送。")
-        return True
-    except Exception as e:
-        logger.error(f"模擬解鎖密碼失敗: {e}")
-        return False
+        try:
+            subprocess.run(["osascript", "-e", applescript_cmd], capture_output=True, text=True, timeout=12)
+            time.sleep(3.0)
+            logger.info("已完成密碼與 Return 鍵傳送！")
+        except Exception as e:
+            logger.warning(f"傳送密碼 AppleScript 異常: {e}")
+
+    return True
 
 
 def detect_mac_screen_state() -> dict:

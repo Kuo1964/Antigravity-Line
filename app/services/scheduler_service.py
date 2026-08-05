@@ -1,7 +1,10 @@
 import os
+import sys
 import time
 import logging
+import subprocess
 from typing import Dict, Any
+from datetime import datetime, timedelta
 
 from app.services.mac_unlocker import unlock_mac, detect_mac_screen_state, restore_mac_screen_state
 from app.services.image_crawler import fetch_latest_good_morning_image, copy_image_to_clipboard
