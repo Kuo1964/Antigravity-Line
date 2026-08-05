@@ -7,17 +7,17 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/start.sh</string>
+        <string>/Users/johnkuo/start_antigravity_linebot.sh</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>WorkingDirectory</key>
-    <string>/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line</string>
+    <string>/Users/johnkuo</string>
     <key>StandardOutPath</key>
-    <string>/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/service.log</string>
+    <string>/tmp/antigravity_linebot.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/service_err.log</string>
+    <string>/tmp/antigravity_linebot.err</string>
 </dict>
 </plist>

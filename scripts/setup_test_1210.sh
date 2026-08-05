@@ -25,7 +25,8 @@ sudo pmset schedule wakepoweron "$TODAY_DATE 12:08:00"
 # 2. 在 crontab 中寫入 12:00 自動關閉 iTerm 關機，以及 12:10 發送給 Private 的測試排程
 echo -e "\n[2/2] 正在配置 12:00 自動關機與 12:10 發送至 Private 的測試排程..."
 
-SHUTDOWN_CRON="0 12 * * * osascript -e 'tell application \"iTerm\" to quit' 2>/dev/null; sleep 2; sudo shutdown -h now"
+SHUTDOWN_CRON="0 12 * * * pkill -9 iTerm2 2>/dev/null; killall -9 iTerm2 2>/dev/null; sleep 1; sudo shutdown -h now"
+
 TEST_CRON="10 12 * * * cd \"$PROJECT_DIR\" && PYTHONPATH=. ./venv/bin/python scripts/send_daily_morning_card.py --target \"Private\" --countdown 1 >> \"$PROJECT_DIR/cron.log\" 2>&1"
 
 (crontab -l 2>/dev/null | grep -v "send_daily_morning_card.py --target \"Private\"" | grep -v "shutdown -h now"; echo "$SHUTDOWN_CRON"; echo "$TEST_CRON") | crontab -
