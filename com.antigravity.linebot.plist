@@ -10,7 +10,7 @@
         <string>/Users/johnkuo/start_antigravity_linebot.sh</string>
     </array>
     <key>RunAtLoad</key>
-    <true/>
+    <false/>
     <key>KeepAlive</key>
     <true/>
     <key>WorkingDirectory</key>

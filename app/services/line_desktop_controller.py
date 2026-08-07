@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def focus_line_app() -> bool:
     """
-    喚醒、還原並聚焦 LINE 桌面版視窗
+    喚醒、還原並聚焦 LINE 桌面版視窗，強制將視窗標準化置頂於 Position(100,100) / Size(1000,800)
     :return: 是否成功聚焦視窗
     """
     logger.info("正在喚醒、還原並聚焦 LINE 桌面版...")
@@ -24,6 +24,10 @@ def focus_line_app() -> bool:
                 set frontmost to true
                 try
                     set miniaturized of window 1 to false
+                end try
+                try
+                    set position of window 1 to {100, 100}
+                    set size of window 1 to {1000, 800}
                 end try
             end tell
         end tell
@@ -40,6 +44,7 @@ def focus_line_app() -> bool:
     except Exception as e:
         logger.error(f"聚焦 LINE App 異常: {e}")
         return False
+
 
 # 載入 macOS 原生 CoreGraphics C 動態庫 (零第三方依賴)
 try:
