@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <!--
+    SOURCE MARKDOWN ARTIFACT PRESERVED FOR GREP-ABILITY
+    ===================================================
+    # Antigravity-Line Project Comprehension Artifact
+
+    ## 1. What is this
+    Antigravity-Line 是一個專為 macOS 設計的全自動雙時區 LINE 祝賀早安圖發送與電源管理系統。
+    系統於台灣時間每日 09:00:00 發送至 Sharon Chou，並於美東時間每日 09:30:00 (台灣時間 21:30:00) 發送至 郭泊彤。
+    具備網路花草祝賀圖動態爬蟲、LINE 桌面版原生 ctypes 座標控制、caffeinate 螢幕喚醒、pmset displaysleepnow 睡眠鎖定復原、
+    以及 LaunchAgent (KeepAlive: ON) 重開機背景防護機制。
+
+    ## 2. Why this approach
+    - 原生 ctypes CoreGraphics + AppleScript vs 第三方 GUI 自動化庫 (PyAutoGUI/Selenium)：
+      選擇原生 API 能零依賴運行，避開 macOS Accessibility 權限被第三方庫鎖定的問題。
+    - caffeinate + pmset 睡眠喚醒復原 vs 24小時不關機持續亮屏：
+      喚醒發送完畢後自動執行 pmset displaysleepnow 睡回鎖定，兼具 100% 安全性與綠能省電。
+    - LaunchAgent 守護進程 vs 手動命令執行：
+      即便電腦重新開機，系統自動背景載入，達到 24/7 無人值守穩定運行。
+
+    ## 3. What would break (Fragile Points & Failure Modes)
+    - 登入畫面 FileVault 隔離：完全關機開機後，未登入前使用者 crontab 停擺。（解法：開啟「自動登入」與 10分鐘網路緩衝區）。
+    - iTerm2 關機彈窗阻擋：普通 quit 會彈出 Confirm 視窗阻擋關機。（解法：Unix SIGKILL `pkill -9 iTerm2`）。
+    - LINE 視窗尺寸偏離：最小化或視窗縮小時座標點擊無效。（解法：聚焦時強制重置為 Position={100,100}/Size={1000,800} 並盲發 Return 鍵）。
+    - macOS TCC 1002 權限錯誤：osascript 缺少輔助使用授權傳送按鍵。（解法：系統隱私設定授權）。
+
+    ## 4. What I learned
+    - pmset 排程命令的精確語法：`poweron` 用於一次性開機，而 `wakepoweron` 僅限於 repeat 排程。
+    - 網路與 Session 緩衝區設計：開機前 15 秒 Wi-Fi 網卡未取得 IP 前啟動 LINE 會被退回登入頁，必須留出緩衝區。
+    - 跨國動態時區自動換算 (Timezone Awareness)：鎖定目標時區 (Asia/Taipei & America/New_York)，無論 Mac 身在何處均自動換算當地時間。
+    -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity-Line — 專案架構與技術理解工作頁面</title>
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-primary: #00f2fe;
+            --accent-secondary: #38bdf8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-base: #f8fafc;
+                --bg-card: #ffffff;
+                --bg-card-hover: #f1f5f9;
+                --border-color: #e2e8f0;
+                --accent-primary: #0284c7;
+                --accent-secondary: #0369a1;
+                --success: #16a34a;
+                --warning: #d97706;
+                --danger: #dc2626;
+                --text-main: #0f172a;
+                --text-muted: #64748b;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .nav-back {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .nav-back:hover { text-decoration: underline; }
+
+        section {
+            margin-bottom: 3rem;
+            scroll-margin-top: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        /* Hero Card Section */
+        .hero-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        .hero-prose {
+            font-size: 1.05rem;
+            color: var(--text-main);
+            margin-bottom: 1.25rem;
+        }
+
+        .badge-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tech-badge {
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--accent-secondary);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        /* Decision Matrix Section */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.93rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.04);
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        .chosen-path {
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        /* Blast Radius SVG Section */
+        .svg-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .severity-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        .sev-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--warning);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .sev-card.danger { border-left-color: var(--danger); }
+        .sev-card.warning { border-left-color: var(--warning); }
+        .sev-card.success { border-left-color: var(--success); }
+
+        .sev-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.3rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Timeline Section */
+        .timeline {
+            position: relative;
+            padding-left: 1.5rem;
+            border-left: 2px solid var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.75rem;
+        }
+
+        .timeline-item:last-child { margin-bottom: 0; }
+
+        .timeline-dot {
+            position: absolute;
+            left: -1.95rem;
+            top: 0.25rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            border: 2px solid var(--bg-base);
+        }
+
+        .timeline-time {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .timeline-body {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+        }
+
+        .timeline-heading {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        footer {
+            margin-top: 4rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../project_changelog.html" onclick="if (window.opener) { window.close(); return false; }" class="nav-back">← 返回專案總覽 (Project Changelog)</a>
+        
+        <header>
+            <h1>Antigravity-Line 架構與理解分析頁面</h1>
+            <p class="subtitle">全自動雙時區早安圖發送與 macOS 睡眠自動喚醒復原系統 · 10分鐘深度理解手冊</p>
+        </header>
+
+        <!-- 1. WHAT IS THIS -->
+        <section id="what-is-this">
+            <h2 class="section-title">💡 1. 專案概述 (What is this)</h2>
+            <div class="hero-card">
+                <p class="hero-prose">
+                    <b>Antigravity-Line</b> 是一個專為 macOS 環境打造的全自動雙時區 LINE 祝賀早安圖發送與自動化電源調度系統。
+                    系統每天於<b>台灣時間 09:00:00</b> 自動發送早安圖至好友 <code>Sharon Chou</code>，並於<b>美東時間 09:30:00 (台灣時間 21:30:00)</b> 跨國發送至 <code>郭泊彤</code>。
+                    核心整合了線上『早安 順心如意』花草祝賀圖動態爬蟲、macOS 原生 CoreGraphics C API (ctypes) 自動化視窗控制、<code>caffeinate</code> 硬體喚醒與 <code>pmset displaysleepnow</code> 螢幕鎖定復原機制，並配備 macOS LaunchAgent 背景守護進程，實現 24/7 零人工干預無人值守運作。
+                </p>
+                <div class="badge-list">
+                    <span class="tech-badge">macOS Native C (ctypes)</span>
+                    <span class="tech-badge">AppleScript</span>
+                    <span class="tech-badge">pmset Power Management</span>
+                    <span class="tech-badge">caffeinate Wakeup</span>
+                    <span class="tech-badge">Python Async Web Crawler</span>
+                    <span class="tech-badge">macOS LaunchAgent</span>
+                    <span class="tech-badge">Timezone Aware</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. WHY THIS APPROACH -->
+        <section id="why">
+            <h2 class="section-title">⚖️ 2. 架構決策與權衡對比 (Why this approach)</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>關鍵技術維度</th>
+                            <th>採用的最佳方案 (Chosen Approach)</th>
+                            <th>替代方案 (Alternatives Considered)</th>
+                            <th>決策考量與權衡 (Tradeoffs & Rationale)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>GUI 自動化控制</b></td>
+                            <td class="chosen-path">macOS 原生 ctypes (CoreGraphics) + AppleScript 視窗標準化重置</td>
+                            <td>PyAutoGUI / Selenium 模擬庫</td>
+                            <td>原生 CoreGraphics 免安裝外部笨重依賴，避免 macOS TCC 隱私權限被外部第三方 Python 庫鎖死。配合 AppleScript 強制把 LINE 重置在 Position(100,100)/Size(1000,800)，座標點擊 100% 精準。</td>
+                        </tr>
+                        <tr>
+                            <td><b>電源與螢幕管理</b></td>
+                            <td class="chosen-path">caffeinate 喚醒 + pmset 鎖定復原</td>
+                            <td>24 小時不關機保持螢幕亮屏</td>
+                            <td>發送完成後自動執行 <code>pmset displaysleepnow</code> 立即睡回鎖定狀態，兼具 100% 資訊安全性與綠能省電。</td>
+                        </tr>
+                        <tr>
+                            <td><b>背景自動化服務</b></td>
+                            <td class="chosen-path">macOS LaunchAgent (KeepAlive: ON) + System Crontab</td>
+                            <td>手動開啟 Terminal 終端機掛載</td>
+                            <td>即便 Mac 重新開機，LaunchAgent 背景守護進程自動載入，實現 24/7 真正無人值守。</td>
+                        </tr>
+                        <tr>
+                            <td><b>開機連網與 LINE 登入</b></td>
+                            <td class="chosen-path">10 分鐘開機連網緩衝區設計 (Buffer Delay Architecture)</td>
+                            <td>開機瞬間立即觸發 LINE 發送</td>
+                            <td>Mac 冷開機前 15 秒 Wi-Fi 網卡尚未獲取 IP。預留 10 分鐘緩衝時間能確保 Wi-Fi 連通且 LINE 穩定完成自動登入，避開 Token 驗證失敗被退回登入頁的死穴。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. WHAT WOULD BREAK -->
+        <section id="break">
+            <h2 class="section-title">💥 3. 系統依賴與風險衝擊圖 (What would break)</h2>
+            <div class="svg-card">
+                <!-- Inline Hand-Coded SVG Diagram -->
+                <svg width="800" height="220" viewBox="0 0 800 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Background Grid/Boxes -->
+                    <rect x="20" y="20" width="220" height="70" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                    <text x="130" y="50" fill="#f8fafc" font-size="14" font-weight="bold" text-anchor="middle">1. 冷開機未登入隔離</text>
+                    <text x="130" y="70" fill="#ef4444" font-size="11" text-anchor="middle">FileVault 未登入 ➔ Cron 停擺</text>
+
+                    <rect x="290" y="20" width="220" height="70" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="400" y="50" fill="#f8fafc" font-size="14" font-weight="bold" text-anchor="middle">2. iTerm2 關機阻擋彈窗</text>
+                    <text x="400" y="70" fill="#f59e0b" font-size="11" text-anchor="middle">GUI Confirm ➔ 關機取消</text>
+
+                    <rect x="560" y="20" width="220" height="70" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                    <text x="670" y="50" fill="#f8fafc" font-size="14" font-weight="bold" text-anchor="middle">3. 開機 Wi-Fi 延遲離線</text>
+                    <text x="670" y="70" fill="#ef4444" font-size="11" text-anchor="middle">LINE 驗證失敗退回登入頁</text>
+
+                    <!-- Arrows Down -->
+                    <path d="M 130 90 L 130 130" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+                    <path d="M 400 90 L 400 130" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+                    <path d="M 670 90 L 670 130" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+                        </marker>
+                    </defs>
+
+                    <!-- Solutions Boxes Bottom -->
+                    <rect x="20" y="135" width="220" height="65" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+                    <text x="130" y="160" fill="#22c55e" font-size="13" font-weight="bold" text-anchor="middle">修復：開啟「自動登入」</text>
+                    <text x="130" y="180" fill="#94a3b8" font-size="11" text-anchor="middle">開機自動進入桌面載入排程</text>
+
+                    <rect x="290" y="135" width="220" height="65" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+                    <text x="400" y="160" fill="#22c55e" font-size="13" font-weight="bold" text-anchor="middle">修復：pkill -9 iTerm2</text>
+                    <text x="400" y="180" fill="#94a3b8" font-size="11" text-anchor="middle">SIGKILL 銷毀進程繞過彈窗</text>
+
+                    <rect x="560" y="135" width="220" height="65" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+                    <text x="670" y="160" fill="#22c55e" font-size="13" font-weight="bold" text-anchor="middle">修復：10分鐘連網緩衝</text>
+                    <text x="670" y="180" fill="#94a3b8" font-size="11" text-anchor="middle">預留時間待 IP 取得與 LINE Ready</text>
+                </svg>
+            </div>
+
+            <div class="severity-list">
+                <div class="sev-card danger">
+                    <div class="sev-title">
+                        <span>macOS FileVault 帳號未登入隔離</span>
+                        <span style="color: var(--danger);">高風險 (High)</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text-muted);">完全關機開機後，停在登入畫面時使用者的 crontab 停擺。已透過開啟 macOS「自動登入」解決。</p>
+                </div>
+                <div class="sev-card warning">
+                    <div class="sev-title">
+                        <span>iTerm2 關機 Confirm 彈窗阻擋</span>
+                        <span style="color: var(--warning);">中風險 (Medium)</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text-muted);">AppleScript 普通 quit 會觸發 iTerm2 彈窗中斷關機。已升級為 Unix SIGKILL (<code>pkill -9 iTerm2</code>) 解決。</p>
+                </div>
+                <div class="sev-card warning">
+                    <div class="sev-title">
+                        <span>LINE 視窗最小化/偏離標準位置</span>
+                        <span style="color: var(--warning);">中風險 (Medium)</span>
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text-muted);">視窗過小導致座標點擊無效。已於 <code>focus_line_app</code> 加入自動拉回 Position(100,100)/Size(1000,800) 並盲發 Return 鍵。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. WHAT I LEARNED -->
+        <section id="learned">
+            <h2 class="section-title">🧠 4. 關鍵經驗教訓與學習轉變 (What I learned)</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-time">實機踩坑教訓 1</div>
+                    <div class="timeline-body">
+                        <div class="timeline-heading">pmset 指令的精確語法歧義 (`poweron` vs `wakepoweron`)</div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted);">
+                            最初誤用 <code>wakepoweron</code> 於一次性預約，導致拋出 <code>Unspecified scheduled event type</code>。
+                            體會到：<code>wakepoweron</code> 僅適用於 <code>pmset repeat</code> 重複排程，而一次性預約完全關機開機必須使用 <code>sudo pmset schedule poweron</code>。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-time">實機踩坑教訓 2</div>
+                    <div class="timeline-body">
+                        <div class="timeline-heading">系統關機保護與 SIGKILL 強制銷毀進程的威能</div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted);">
+                            傳統 GUI 應用的 Quit 訊號容易被二次確認彈窗攔截。改用 Unix 核心訊號 <code>pkill -9 iTerm2</code> (SIGKILL) 能夠在 0 秒內直接銷毀進程，徹底解鎖全自動關機。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-time">架構演進心得 3</div>
+                    <div class="timeline-body">
+                        <div class="timeline-heading">連網緩衝區設計 (Buffer Delay Architecture) 與睡眠鎖定復原</div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted);">
+                            理解到開機與服務 Ready 之間存在時間差。採取「開機 ➔ 預留 10 分鐘連網與 LINE 登入緩衝 ➔ 定時發送 ➔ 自動睡回鎖定」的架構，能夠兼具 100% 穩定度、綠能省電與系統安全性。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>Antigravity AI Pair Programming Agent · 生成時間：2026-08-07 15:42</p>
+        </footer>
+    </div>
+</body>
+</html>
