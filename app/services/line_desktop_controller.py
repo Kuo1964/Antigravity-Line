@@ -91,8 +91,20 @@ def get_line_window_bounds() -> tuple[int, int, int, int]:
     """
     cmd = '''
     with timeout of 5 seconds
+        tell application "LINE"
+            reopen
+            activate
+        end tell
         tell application "System Events"
             tell process "LINE"
+                set frontmost to true
+                try
+                    set miniaturized of window 1 to false
+                end try
+                try
+                    set position of window 1 to {100, 100}
+                    set size of window 1 to {900, 700}
+                end try
                 set winPos to position of window 1
                 set winSize to size of window 1
                 return (item 1 of winPos as string) & "," & (item 2 of winPos as string) & "," & (item 1 of winSize as string) & "," & (item 2 of winSize as string)
@@ -106,13 +118,14 @@ def get_line_window_bounds() -> tuple[int, int, int, int]:
             numbers = re.findall(r'-?\d+', res.stdout)
             if len(numbers) >= 4:
                 x, y, w, h = int(numbers[0]), int(numbers[1]), int(numbers[2]), int(numbers[3])
-                logger.info(f"成功取得 LINE 視窗範圍: Position=({x}, {y}), Size=({w}, {h})")
+                logger.info(f"成功取得並標準化 LINE 視窗範圍: Position=({x}, {y}), Size=({w}, {h})")
                 return x, y, w, h
     except Exception as e:
         logger.warning(f"取得 LINE 視窗範圍異常: {e}")
 
-    logger.warning("無法動態獲取 LINE 視窗範圍，使用預設範圍 (100, 100, 900, 700)")
+    logger.warning("使用標準重置範圍 (100, 100, 900, 700)")
     return 100, 100, 900, 700
+
 
 def search_and_send_image(target_name: str, image_path: str = "") -> bool:
     """
