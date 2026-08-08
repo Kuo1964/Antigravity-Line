@@ -46,15 +46,15 @@ def wake_mac_screen() -> None:
 
 def unlock_mac(password: str = None) -> bool:
     """
-    喚醒並解鎖 macOS 螢幕 (支援開機登入畫面盲打密碼)
+    喚醒並解鎖 macOS 螢幕 (含 caffeinate 強效防變黑鎖定保護)
     :param password: Mac 管理員密碼
     :return: 是否成功執行喚醒/解鎖
     """
     pwd = password or os.getenv("MAC_PASSWORD", "")
-    logger.info("發送喚醒訊號 (caffeinate)...")
+    logger.info("發送喚醒與強效防變黑鎖定訊號 (caffeinate -d -u -t 60)...")
     try:
-        subprocess.run(["caffeinate", "-u", "-t", "5"], check=False)
-        time.sleep(2.0)
+        subprocess.Popen(["caffeinate", "-d", "-u", "-t", "60"])
+        time.sleep(1.5)
     except Exception as e:
         logger.warning(f"caffeinate 喚醒異常: {e}")
 
@@ -72,12 +72,13 @@ def unlock_mac(password: str = None) -> bool:
         '''
         try:
             subprocess.run(["osascript", "-e", applescript_cmd], capture_output=True, text=True, timeout=12)
-            time.sleep(3.0)
+            time.sleep(2.0)
             logger.info("已完成密碼與 Return 鍵傳送！")
         except Exception as e:
             logger.warning(f"傳送密碼 AppleScript 異常: {e}")
 
     return True
+
 
 
 def detect_mac_screen_state() -> dict:

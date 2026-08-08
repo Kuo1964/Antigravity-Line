@@ -87,7 +87,7 @@ except Exception as e:
 
 def get_line_window_bounds() -> tuple[int, int, int, int]:
     """
-    取得 LINE 桌面版主視窗在螢幕上的 (X, Y, Width, Height) 絕對座標與尺寸
+    取得 LINE 桌面版主視窗在螢幕上的 (X, Y, Width, Height) 絕對座標與尺寸，保留使用者原始位置
     """
     cmd = '''
     with timeout of 5 seconds
@@ -100,10 +100,6 @@ def get_line_window_bounds() -> tuple[int, int, int, int]:
                 set frontmost to true
                 try
                     set miniaturized of window 1 to false
-                end try
-                try
-                    set position of window 1 to {100, 100}
-                    set size of window 1 to {900, 700}
                 end try
                 set winPos to position of window 1
                 set winSize to size of window 1
@@ -118,14 +114,13 @@ def get_line_window_bounds() -> tuple[int, int, int, int]:
             numbers = re.findall(r'-?\d+', res.stdout)
             if len(numbers) >= 4:
                 x, y, w, h = int(numbers[0]), int(numbers[1]), int(numbers[2]), int(numbers[3])
-                logger.info(f"成功取得並標準化 LINE 視窗範圍: Position=({x}, {y}), Size=({w}, {h})")
+                logger.info(f"成功取得 LINE 原始視窗範圍: Position=({x}, {y}), Size=({w}, {h})")
                 return x, y, w, h
     except Exception as e:
         logger.warning(f"取得 LINE 視窗範圍異常: {e}")
 
-    logger.warning("使用標準重置範圍 (100, 100, 900, 700)")
+    logger.warning("無法取得 LINE 視窗範圍，使用標準備用範圍 (100, 100, 900, 700)")
     return 100, 100, 900, 700
-
 
 def search_and_send_image(target_name: str, image_path: str = "") -> bool:
     """
@@ -140,13 +135,13 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         return False
 
     try:
-        # 1. 取得 LINE 視窗範圍並給予動畫還原時間
+        # 1. 取得 LINE 視窗真實範圍，給予動畫與喚醒防護時間
         win_x, win_y, win_w, win_h = get_line_window_bounds()
         time.sleep(1.0) # 等待 Dock 視窗彈出動畫 100% 完成
 
         logger.info(f"步驟 A: 透過 Cmd+F 全域快捷鍵精確聚焦搜尋框，並搜尋目標 '{target_name}'...")
 
-        # 2. 使用 LINE 原生全域搜尋快捷鍵 (Cmd + F) 100% 強制聚焦搜尋框，清空並貼上 target_name
+        # 2. 使用 LINE 原生全域搜尋快捷鍵 (Cmd + F) 100% 強制聚焦搜尋框，清空並貼上 target_name，盲發 Down Arrow (125) 選擇第一項並 Return (36) 開啟
         applescript_search = f'''
         set the clipboard to "{target_name}"
         with timeout of 10 seconds
@@ -158,16 +153,18 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
                 tell process "LINE"
                     set frontmost to true
                     delay 0.5
-                    keystroke "f" using {{command down}} -- 全域搜尋快捷鍵
+                    keystroke "f" using {{command down}} -- 1. 全域搜尋快捷鍵 (100% 聚焦)
                     delay 0.3
                     keystroke "a" using {{command down}}
                     delay 0.2
                     key code 51 -- Backspace
                     delay 0.2
-                    keystroke "v" using {{command down}}
-                    delay 1.0 -- 等待搜尋結果選單顯示
-                    key code 36 -- Return 盲發 Enter 開啟第一筆搜尋結果
-                    delay 0.5
+                    keystroke "v" using {{command down}} -- 貼上搜尋目標
+                    delay 1.2 -- 等待搜尋結果列表彈出
+                    key code 125 -- 2. Down Arrow 下方向鍵 (將游標從搜尋框跳移選擇第一筆搜尋結果!)
+                    delay 0.3
+                    key code 36 -- 3. Return 鍵 (敲擊 Enter 開啟選中的聊天室!)
+                    delay 0.8
                 end tell
             end tell
         end timeout
@@ -177,14 +174,15 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        logger.info(f"步驟 B: 已透過 Cmd+F 與 Return 鍵開啟目標 '{target_name}' 聊天室")
+        logger.info(f"步驟 B: 已透過 Cmd+F ➔ Down Arrow ➔ Return 鍵開啟目標 '{target_name}' 聊天室")
 
-        # 4. 點擊右側聊天室訊息輸入框座標: (win_x + win_w//2 + 100, win_y + win_h - 60)
-        chat_input_x = win_x + (win_w // 2) + 100
-        chat_input_y = win_y + win_h - 60
-        logger.info(f"步驟 C: 原生點擊右側對話框輸入區座標 ({chat_input_x}, {chat_input_y})")
+        # 3. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
+        chat_input_x = win_x + int(win_w * 0.7)
+        chat_input_y = win_y + win_h - 40
+        logger.info(f"步驟 C: 原生點擊右側對話框輸入區相對座標 ({chat_input_x}, {chat_input_y})")
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
+
 
 
         # 5. 重新將早安圖片寫入剪貼簿
