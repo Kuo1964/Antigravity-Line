@@ -140,32 +140,34 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         return False
 
     try:
-        # 1. 取得 LINE 視窗範圍
+        # 1. 取得 LINE 視窗範圍並給予動畫還原時間
         win_x, win_y, win_w, win_h = get_line_window_bounds()
-        search_x = win_x + 190
-        search_y = win_y + 95
-        logger.info(f"步驟 A: 原生點擊全域搜尋框座標 ({search_x}, {search_y})")
+        time.sleep(1.0) # 等待 Dock 視窗彈出動畫 100% 完成
 
-        mac_native_click(search_x, search_y)
-        time.sleep(0.5)
+        logger.info(f"步驟 A: 透過 Cmd+F 全域快捷鍵精確聚焦搜尋框，並搜尋目標 '{target_name}'...")
 
-        # 2. 寫入 target_name 到剪貼簿，清空搜尋框並貼上
+        # 2. 使用 LINE 原生全域搜尋快捷鍵 (Cmd + F) 100% 強制聚焦搜尋框，清空並貼上 target_name
         applescript_search = f'''
         set the clipboard to "{target_name}"
         with timeout of 10 seconds
             tell application "LINE"
+                reopen
                 activate
             end tell
             tell application "System Events"
                 tell process "LINE"
                     set frontmost to true
+                    delay 0.5
+                    keystroke "f" using {{command down}} -- 全域搜尋快捷鍵
                     delay 0.3
                     keystroke "a" using {{command down}}
                     delay 0.2
                     key code 51 -- Backspace
                     delay 0.2
                     keystroke "v" using {{command down}}
-                    delay 1.5 -- 等待搜尋結果選單顯示
+                    delay 1.0 -- 等待搜尋結果選單顯示
+                    key code 36 -- Return 盲發 Enter 開啟第一筆搜尋結果
+                    delay 0.5
                 end tell
             end tell
         end timeout
@@ -175,17 +177,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        # 3. 實體點擊搜尋結果清單中的第 1 個結果項目座標，並按 Return 雙重確保開啟聊天室
-        result_item_x = win_x + 220
-        result_item_y = win_y + 185
-        logger.info(f"步驟 B: 原生點擊搜尋結果 '{target_name}' 項目座標 ({result_item_x}, {result_item_y}) 並開啟聊天室")
-        mac_native_click(result_item_x, result_item_y)
-        time.sleep(0.5)
-        
-        # 鍵盤 Return (Key Code 36) 雙重保險，確保必然開啟第一筆搜尋結果
-        subprocess.run(["osascript", "-e", 'with timeout of 5 seconds\ntell application "System Events" to key code 36\nend timeout'], capture_output=True)
-        time.sleep(1.0)
-
+        logger.info(f"步驟 B: 已透過 Cmd+F 與 Return 鍵開啟目標 '{target_name}' 聊天室")
 
         # 4. 點擊右側聊天室訊息輸入框座標: (win_x + win_w//2 + 100, win_y + win_h - 60)
         chat_input_x = win_x + (win_w // 2) + 100
@@ -193,6 +185,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         logger.info(f"步驟 C: 原生點擊右側對話框輸入區座標 ({chat_input_x}, {chat_input_y})")
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
+
 
         # 5. 重新將早安圖片寫入剪貼簿
         if image_path and os.path.exists(image_path):
