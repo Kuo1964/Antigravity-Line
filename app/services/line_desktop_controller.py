@@ -167,10 +167,6 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
                     delay 0.3
                     keystroke "{target_name}" -- 逐字打入目標名稱 (100% 寫入全域搜尋欄!)
                     delay 1.2 -- 等待全域搜尋結果過濾顯示
-                    key code 125 -- Down Arrow 下方向鍵 (跳移高亮選中全域第一筆結果 Private!)
-                    delay 0.3
-                    key code 36 -- Return 鍵 (敲擊 Enter 開啟選中的聊天室!)
-                    delay 0.8
                 end tell
             end tell
         end timeout
@@ -180,14 +176,24 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        logger.info(f"步驟 B: 已透過實體全域點擊 ➔ keystroke 打字 ➔ Down Arrow ➔ Return 鍵開啟目標 '{target_name}' 聊天室")
+        # 3. 原生 ctypes 實體滑鼠點擊全域搜尋結果清單中的第 1 個結果項目座標，100% 強制切換並開啟聊天室
+        result_item_x = win_x + 220
+        result_item_y = win_y + 190
+        logger.info(f"步驟 B: 原生 ctypes 實體點擊全域搜尋結果第一項 '{target_name}' 座標 ({result_item_x}, {result_item_y}) 並切換開啟聊天室...")
+        mac_native_click(result_item_x, result_item_y)
+        time.sleep(0.8)
+        
+        # 鍵盤 Return 雙重保險
+        subprocess.run(["osascript", "-e", 'tell application "System Events" to key code 36'], capture_output=True)
+        time.sleep(0.5)
 
-        # 3. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
+        # 4. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
         chat_input_x = win_x + int(win_w * 0.7)
         chat_input_y = win_y + win_h - 40
         logger.info(f"步驟 C: 原生點擊右側對話框輸入區相對座標 ({chat_input_x}, {chat_input_y})")
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
+
 
 
 
