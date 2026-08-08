@@ -139,9 +139,18 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         win_x, win_y, win_w, win_h = get_line_window_bounds()
         time.sleep(1.0) # 等待 Dock 視窗彈出動畫 100% 完成
 
-        logger.info(f"步驟 A: 透過 AppleScript keystroke 鍵盤模擬逐字打入目標 '{target_name}'...")
+        # 2. 先盲發 Esc 鍵脫離右側聊天室焦點，隨後實體點擊左上角全域搜尋框 (win_x + 150, win_y + 95)
+        logger.info(f"步驟 A1: 盲發 Esc 鍵脫離右側聊天室焦點...")
+        subprocess.run(["osascript", "-e", 'tell application "System Events" to key code 53'], capture_output=True)
+        time.sleep(0.3)
 
-        # 2. 直接使用 System Events keystroke "target_name" 逐字打入搜尋框 (100% 寫入搜尋欄!)
+        search_x = win_x + 150
+        search_y = win_y + 95
+        logger.info(f"步驟 A2: 原生 ctypes 實體點擊左上角全域搜尋框座標 ({search_x}, {search_y})...")
+        mac_native_click(search_x, search_y)
+        time.sleep(0.5)
+
+        logger.info(f"步驟 A3: 透過 AppleScript keystroke 鍵盤逐字打入全域目標 '{target_name}'...")
         applescript_search = f'''
         with timeout of 10 seconds
             tell application "LINE"
@@ -151,18 +160,16 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             tell application "System Events"
                 tell process "LINE"
                     set frontmost to true
-                    delay 0.8
-                    keystroke "f" using {{command down}} -- 1. 喚起全域搜尋框 (100% 聚焦)
-                    delay 0.5
+                    delay 0.3
                     keystroke "a" using {{command down}}
                     delay 0.2
-                    key code 51 -- Backspace 清空舊搜尋字串
+                    key code 51 -- Backspace 清空全域搜尋欄
                     delay 0.3
-                    keystroke "{target_name}" -- 2. 模擬鍵盤逐字打入目標名稱 (零剪貼簿依賴!)
-                    delay 1.2 -- 等待搜尋結果過濾顯示
-                    key code 125 -- 3. Down Arrow 下方向鍵 (跳移高亮選中第一筆搜尋結果 Private!)
+                    keystroke "{target_name}" -- 逐字打入目標名稱 (100% 寫入全域搜尋欄!)
+                    delay 1.2 -- 等待全域搜尋結果過濾顯示
+                    key code 125 -- Down Arrow 下方向鍵 (跳移高亮選中全域第一筆結果 Private!)
                     delay 0.3
-                    key code 36 -- 4. Return 鍵 (敲擊 Enter 開啟選中的聊天室!)
+                    key code 36 -- Return 鍵 (敲擊 Enter 開啟選中的聊天室!)
                     delay 0.8
                 end tell
             end tell
@@ -173,7 +180,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        logger.info(f"步驟 B: 已透過 keystroke 逐字打字 ➔ Down Arrow ➔ Return 鍵開啟目標 '{target_name}' 聊天室")
+        logger.info(f"步驟 B: 已透過實體全域點擊 ➔ keystroke 打字 ➔ Down Arrow ➔ Return 鍵開啟目標 '{target_name}' 聊天室")
 
         # 3. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
         chat_input_x = win_x + int(win_w * 0.7)
@@ -181,6 +188,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         logger.info(f"步驟 C: 原生點擊右側對話框輸入區相對座標 ({chat_input_x}, {chat_input_y})")
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
+
 
 
 
