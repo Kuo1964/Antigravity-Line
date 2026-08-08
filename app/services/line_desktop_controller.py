@@ -139,11 +139,10 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         win_x, win_y, win_w, win_h = get_line_window_bounds()
         time.sleep(1.0) # 等待 Dock 視窗彈出動畫 100% 完成
 
-        logger.info(f"步驟 A: 透過 Cmd+F 全域快捷鍵精確聚焦搜尋框，並搜尋目標 '{target_name}'...")
+        logger.info(f"步驟 A: 透過 AppleScript 直接向 UI 搜尋框賦值寫入目標 '{target_name}'...")
 
-        # 2. 使用 LINE 原生全域搜尋快捷鍵 (Cmd + F) 100% 強制聚焦搜尋框，清空並貼上 target_name，盲發 Down Arrow (125) 選擇第一項並 Return (36) 開啟
+        # 2. 直接使用 UI Element 賦值 set value of text field 1 of window 1 寫入 target_name (100% 無延遲寫入!)
         applescript_search = f'''
-        set the clipboard to "{target_name}"
         with timeout of 10 seconds
             tell application "LINE"
                 reopen
@@ -153,17 +152,17 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
                 tell process "LINE"
                     set frontmost to true
                     delay 0.5
-                    keystroke "f" using {{command down}} -- 1. 全域搜尋快捷鍵 (100% 聚焦)
+                    try
+                        set value of text field 1 of window 1 to "{target_name}"
+                    on error
+                        keystroke "f" using {{command down}}
+                        delay 0.3
+                        keystroke "{target_name}"
+                    end try
+                    delay 1.0 -- 等待搜尋結果列表過濾
+                    key code 125 -- Down Arrow 下方向鍵 (跳移高亮選中第一筆搜尋結果 Private!)
                     delay 0.3
-                    keystroke "a" using {{command down}}
-                    delay 0.2
-                    key code 51 -- Backspace
-                    delay 0.2
-                    keystroke "v" using {{command down}} -- 貼上搜尋目標
-                    delay 1.2 -- 等待搜尋結果列表彈出
-                    key code 125 -- 2. Down Arrow 下方向鍵 (將游標從搜尋框跳移選擇第一筆搜尋結果!)
-                    delay 0.3
-                    key code 36 -- 3. Return 鍵 (敲擊 Enter 開啟選中的聊天室!)
+                    key code 36 -- Return 鍵 (敲擊 Enter 開啟選中的聊天室!)
                     delay 0.8
                 end tell
             end tell
@@ -174,7 +173,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        logger.info(f"步驟 B: 已透過 Cmd+F ➔ Down Arrow ➔ Return 鍵開啟目標 '{target_name}' 聊天室")
+        logger.info(f"步驟 B: 已透過 UI Element 賦值與 Return 鍵開啟目標 '{target_name}' 聊天室")
 
         # 3. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
         chat_input_x = win_x + int(win_w * 0.7)
@@ -182,6 +181,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         logger.info(f"步驟 C: 原生點擊右側對話框輸入區相對座標 ({chat_input_x}, {chat_input_y})")
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
+
 
 
 
