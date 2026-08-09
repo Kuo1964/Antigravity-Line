@@ -27,11 +27,42 @@ def schedule_next_mac_wake(target_name: str) -> None:
         else:
             next_wake = (now + timedelta(days=1)).replace(hour=8, minute=58, second=0)
             
-        time_str = next_wake.strftime("%m/%d/%Y %H:%M:%S")
-        logger.info(f"正在為下一次發送任務自動預約 macOS 硬體喚醒 ({time_str})...")
-        subprocess.run(["sudo", "pmset", "schedule", "wake", time_str], check=False)
+        date_str = next_wake.strftime("%m/%d/%Y")
+        time_str = next_wake.strftime("%H:%M:%S")
+        schedule_mac_wake(date_str, time_str)
     except Exception as e:
         logger.warning(f"自動預約硬體喚醒失敗: {e}")
+
+def schedule_mac_wake(date_str: str, time_str: str) -> bool:
+    """
+    預約 macOS 在指定日期時間發動硬體喚醒/通電開機 (採用 sudo -n 免密碼防護)
+    :param date_str: 日期字串 (格式: "MM/DD/YYYY")
+    :param time_str: 時間字串 (格式: "HH:MM:SS")
+    :return: 是否成功設定預約
+    """
+    datetime_arg = f"{date_str} {time_str}"
+    logger.info(f"正在為下一次發送任務自動預約 macOS 硬體喚醒 ({datetime_arg})...")
+    
+    # 優先嘗試 poweron (完全關機通電開機)，若失敗則退回 wake (睡眠喚醒)
+    cmd_poweron = ["sudo", "-n", "pmset", "schedule", "poweron", date_str, time_str]
+    cmd_wake = ["sudo", "-n", "pmset", "schedule", "wake", date_str, time_str]
+    
+    try:
+        res = subprocess.run(cmd_poweron, capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            logger.info(f"🎉 成功預約完全關機後的硬體通電開機: {datetime_arg}")
+            return True
+        else:
+            res_wake = subprocess.run(cmd_wake, capture_output=True, text=True, check=False)
+            if res_wake.returncode == 0:
+                logger.info(f"🎉 成功預約睡眠狀態下的硬體喚醒: {datetime_arg}")
+                return True
+            else:
+                logger.warning(f"pmset 預約未完成 (可能需配置 sudoers 免密碼): {res.stderr or res_wake.stderr}")
+                return False
+    except Exception as e:
+        logger.error(f"預約 macOS 硬體喚醒異常: {e}")
+        return False
 
 def run_good_morning_workflow(target_name: str = "Private", mac_password: str = "") -> Dict[str, Any]:
     """
