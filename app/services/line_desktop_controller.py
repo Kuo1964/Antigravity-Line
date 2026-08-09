@@ -122,6 +122,79 @@ def get_line_window_bounds() -> tuple[int, int, int, int]:
     logger.warning("無法取得 LINE 視窗範圍，使用標準備用範圍 (100, 100, 900, 700)")
     return 100, 100, 900, 700
 
+def get_line_login_password() -> str:
+    """
+    從本地 .env.secret 或環境變數讀取 LINE 登入密碼 (100% 本地隔離防護)
+    """
+    secret_path = os.path.join(PROJECT_DIR, ".env.secret")
+    if os.path.exists(secret_path):
+        try:
+            with open(secret_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("LINE_PASSWORD="):
+                        return line.split("=", 1)[1].strip()
+        except Exception as e:
+            logger.warning(f"讀取 .env.secret 異常: {e}")
+    return os.getenv("LINE_PASSWORD", "")
+
+
+def handle_line_login_if_needed() -> bool:
+    """
+    檢測 LINE 桌面版是否停留在密碼登入畫面，若是則自動輸入密碼並完成登入
+    """
+    pwd = get_line_login_password()
+    if not pwd:
+        logger.info("未檢測到本地 LINE_PASSWORD 設定，跳過自動登入處理")
+        return True
+
+    cmd_check = '''
+    with timeout of 5 seconds
+        tell application "LINE" to activate
+        tell application "System Events"
+            tell process "LINE"
+                set frontmost to true
+                try
+                    -- 檢查是否存在密碼輸入框 (secure text field 1 或 text field 1)
+                    if (exists secure text field 1 of window 1) or (exists text field 1 of window 1) then
+                        return "NEED_LOGIN"
+                    end if
+                end try
+            end tell
+        end tell
+    end timeout
+    return "LOGGED_IN"
+    '''
+    try:
+        res = subprocess.run(["osascript", "-e", cmd_check], capture_output=True, text=True, timeout=8)
+        if "NEED_LOGIN" in res.stdout:
+            logger.info("⚠️ 檢測到 LINE 桌面版停留在登入畫面，正在自動輸入密碼並登入...")
+            cmd_login = f'''
+            with timeout of 10 seconds
+                tell application "LINE" to activate
+                tell application "System Events"
+                    tell process "LINE"
+                        set frontmost to true
+                        delay 0.5
+                        try
+                            set value of secure text field 1 of window 1 to "{pwd}"
+                        on error
+                            keystroke "{pwd}"
+                        end try
+                        delay 0.5
+                        key code 36 -- Return 鍵點擊登入
+                        delay 3.0 -- 等待登入後主畫面載入
+                    end tell
+                end tell
+            end timeout
+            '''
+            subprocess.run(["osascript", "-e", cmd_login], capture_output=True, text=True, timeout=12)
+            logger.info("🎉 已自動傳送密碼與 Return 鍵，LINE 成功完成登入！")
+    except Exception as e:
+        logger.warning(f"檢測/處理 LINE 自動登入異常: {e}")
+
+    return True
+
+
 def search_and_send_image(target_name: str, image_path: str = "") -> bool:
     """
     在 LINE 桌面版中精確搜尋好友/群組名稱，點選該搜尋結果，並貼上 (Cmd+V) 傳送早安圖片
@@ -134,24 +207,23 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
     if not focus_line_app():
         return False
 
+    # 先檢測並處理 LINE 自動登入
+    handle_line_login_if_needed()
+
     try:
         # 1. 取得 LINE 視窗真實範圍，給予動畫與喚醒防護時間
         win_x, win_y, win_w, win_h = get_line_window_bounds()
         time.sleep(1.0) # 等待 Dock 視窗彈出動畫 100% 完成
 
-        # 2. 先盲發 Esc 鍵脫離右側聊天室焦點，隨後實體點擊左上角全域搜尋框 (win_x + 150, win_y + 95)
+        # 2. 先盲發 Esc 鍵脫離右側聊天室焦點
         logger.info(f"步驟 A1: 盲發 Esc 鍵脫離右側聊天室焦點...")
         subprocess.run(["osascript", "-e", 'tell application "System Events" to key code 53'], capture_output=True)
         time.sleep(0.3)
 
-        search_x = win_x + 150
-        search_y = win_y + 95
-        logger.info(f"步驟 A2: 原生 ctypes 實體點擊左上角全域搜尋框座標 ({search_x}, {search_y})...")
-        mac_native_click(search_x, search_y)
-        time.sleep(0.5)
-
-        logger.info(f"步驟 A3: 透過 AppleScript keystroke 鍵盤逐字打入全域目標 '{target_name}'...")
+        # 3. 透過 AppleScript 強制聚焦全域搜尋欄 UI，並貼上 target_name
+        logger.info(f"步驟 A2: 透過 AppleScript UI 鎖定全域搜尋欄並寫入目標 '{target_name}'...")
         applescript_search = f'''
+        set the clipboard to "{target_name}"
         with timeout of 10 seconds
             tell application "LINE"
                 reopen
@@ -160,12 +232,17 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             tell application "System Events"
                 tell process "LINE"
                     set frontmost to true
+                    delay 0.5
+                    try
+                        set focused of text field 1 of window 1 to true
+                    end try
+                    keystroke "f" using {{command down}}
                     delay 0.3
                     keystroke "a" using {{command down}}
                     delay 0.2
-                    key code 51 -- Backspace 清空全域搜尋欄
-                    delay 0.3
-                    keystroke "{target_name}" -- 逐字打入目標名稱 (100% 寫入全域搜尋欄!)
+                    key code 51 -- Backspace
+                    delay 0.2
+                    keystroke "v" using {{command down}} -- 貼上搜尋目標
                     delay 1.2 -- 等待全域搜尋結果過濾顯示
                 end tell
             end tell
@@ -176,7 +253,7 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             logger.error(f"輸入搜尋目標失敗: {res_search.stderr}")
             return False
 
-        # 3. 原生 ctypes 實體滑鼠點擊全域搜尋結果清單中的第 1 個結果項目座標，100% 強制切換並開啟聊天室
+        # 4. 原生 ctypes 實體滑鼠點擊全域搜尋結果清單中的第 1 個結果項目座標 (win_x + 220, win_y + 190)
         result_item_x = win_x + 220
         result_item_y = win_y + 190
         logger.info(f"步驟 B: 原生 ctypes 實體點擊全域搜尋結果第一項 '{target_name}' 座標 ({result_item_x}, {result_item_y}) 並切換開啟聊天室...")
@@ -187,12 +264,13 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         subprocess.run(["osascript", "-e", 'tell application "System Events" to key code 36'], capture_output=True)
         time.sleep(0.5)
 
-        # 4. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
+        # 5. 點擊右側聊天室訊息輸入框座標 (改用視窗相對百分比比例: win_x + win_w*0.7, win_y + win_h - 40)
         chat_input_x = win_x + int(win_w * 0.7)
         chat_input_y = win_y + win_h - 40
         logger.info(f"步驟 C: 原生點擊右側對話框輸入區相對座標 ({chat_input_x}, {chat_input_y})")
         mac_native_click(chat_input_x, chat_input_y)
         time.sleep(0.6)
+
 
 
 
