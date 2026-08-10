@@ -170,8 +170,9 @@ def handle_line_login_if_needed() -> bool:
         logger.info("未檢測到本地 LINE_PASSWORD 設定，跳過自動登入處理")
         return True
 
-    # 1. 先確保 Wi-Fi 網路已連通 (消滅「網路發生錯誤，無法登入」)
+    # 1. 先確保 Wi-Fi 網路已連通，並給予 3 秒 Socket 初始化穩定延遲
     wait_for_network_ready(timeout_seconds=15)
+    time.sleep(3.0)
 
     # 2. 取得 LINE 視窗當前範圍
     win_x, win_y, win_w, win_h = get_line_window_bounds()
@@ -196,7 +197,7 @@ def handle_line_login_if_needed() -> bool:
     try:
         res = subprocess.run(["osascript", "-e", cmd_check], capture_output=True, text=True, timeout=8)
         if "NEED_LOGIN" in res.stdout:
-            logger.info("⚠️ 檢測到 LINE 桌面版停留在登入畫面，正在實體點擊密碼框並自動輸入密碼...")
+            logger.info("⚠️ 檢測到 LINE 桌面版停留在登入畫面，正在實體點擊密碼框並透過 Cmd+V 零偏碼貼上密碼...")
             
             # 實體滑鼠點擊密碼輸入框位置: (win_x + win_w//2, win_y + 260)
             pass_x = win_x + (win_w // 2)
@@ -205,8 +206,9 @@ def handle_line_login_if_needed() -> bool:
             mac_native_click(pass_x, pass_y)
             time.sleep(0.5)
 
-            # 透過 AppleScript keystroke 逐字打入密碼並 Return
+            # 透過 AppleScript 寫入剪貼簿，並盲發 Cmd+V 零偏碼貼上密碼 (徹底消滅特殊符號打字偏碼死穴!)
             cmd_login = f'''
+            set the clipboard to "{pwd}"
             with timeout of 10 seconds
                 tell application "LINE" to activate
                 tell application "System Events"
@@ -217,7 +219,7 @@ def handle_line_login_if_needed() -> bool:
                         delay 0.2
                         key code 51 -- Backspace 清空舊內容
                         delay 0.2
-                        keystroke "{pwd}" -- 逐字打入本地密碼
+                        keystroke "v" using {{command down}} -- 100% 零偏碼貼上密碼
                         delay 0.5
                         key code 36 -- Return 鍵點擊登入
                         delay 4.0 -- 等待登入後主畫面載入
@@ -226,11 +228,15 @@ def handle_line_login_if_needed() -> bool:
             end timeout
             '''
             subprocess.run(["osascript", "-e", cmd_login], capture_output=True, text=True, timeout=12)
-            logger.info("🎉 已自動傳送密碼與 Return 鍵，LINE 成功完成登入！")
+            
+            # 登入後立即清空系統剪貼簿 (維護密碼隱私安全)
+            subprocess.run(["pbcopy"], input="", text=True, check=False)
+            logger.info("🎉 已自動傳送 Cmd+V 密碼與 Return 鍵，LINE 成功完成登入！")
     except Exception as e:
         logger.warning(f"檢測/處理 LINE 自動登入異常: {e}")
 
     return True
+
 
 
 
