@@ -122,6 +122,29 @@ def get_line_window_bounds() -> tuple[int, int, int, int]:
     logger.warning("無法取得 LINE 視窗範圍，使用標準備用範圍 (100, 100, 900, 700)")
     return 100, 100, 900, 700
 
+def wait_for_network_ready(timeout_seconds: int = 15) -> bool:
+    """
+    等待 Mac Wi-Fi 網路成功連線與取得 IP (避免開機後出現「網路發生錯誤，無法登入」)
+    :param timeout_seconds: 最大等待秒數 (預設 15 秒)
+    :return: 網路是否已準備就緒
+    """
+    logger.info(f"正在檢測 Mac Wi-Fi 網路連線狀態 (最多等待 {timeout_seconds} 秒)...")
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        try:
+            # 測試 ping 公用 DNS 伺服器 (8.8.8.8)
+            res = subprocess.run(["ping", "-c", "1", "-t", "2", "8.8.8.8"], capture_output=True, text=True, check=False)
+            if res.returncode == 0:
+                logger.info("🎉 檢測到 Mac Wi-Fi 網路已成功連通！")
+                return True
+        except Exception:
+            pass
+        time.sleep(2.0)
+
+    logger.warning("⏱️ 等待網路連線超時，將嘗試繼續執行後續步驟...")
+    return False
+
+
 def get_line_login_password() -> str:
     """
     從本地 .env.secret 或環境變數讀取 LINE 登入密碼 (100% 本地隔離防護)
@@ -147,6 +170,12 @@ def handle_line_login_if_needed() -> bool:
         logger.info("未檢測到本地 LINE_PASSWORD 設定，跳過自動登入處理")
         return True
 
+    # 1. 先確保 Wi-Fi 網路已連通 (消滅「網路發生錯誤，無法登入」)
+    wait_for_network_ready(timeout_seconds=15)
+
+    # 2. 取得 LINE 視窗當前範圍
+    win_x, win_y, win_w, win_h = get_line_window_bounds()
+
     cmd_check = '''
     with timeout of 5 seconds
         tell application "LINE" to activate
@@ -154,8 +183,8 @@ def handle_line_login_if_needed() -> bool:
             tell process "LINE"
                 set frontmost to true
                 try
-                    -- 檢查是否存在密碼輸入框 (secure text field 1 或 text field 1)
-                    if (exists secure text field 1 of window 1) or (exists text field 1 of window 1) then
+                    -- 檢查是否存在登入相關元件
+                    if (exists secure text field 1 of window 1) or (exists text field 1 of window 1) or (exists button "登入" of window 1) then
                         return "NEED_LOGIN"
                     end if
                 end try
@@ -167,22 +196,31 @@ def handle_line_login_if_needed() -> bool:
     try:
         res = subprocess.run(["osascript", "-e", cmd_check], capture_output=True, text=True, timeout=8)
         if "NEED_LOGIN" in res.stdout:
-            logger.info("⚠️ 檢測到 LINE 桌面版停留在登入畫面，正在自動輸入密碼並登入...")
+            logger.info("⚠️ 檢測到 LINE 桌面版停留在登入畫面，正在實體點擊密碼框並自動輸入密碼...")
+            
+            # 實體滑鼠點擊密碼輸入框位置: (win_x + win_w//2, win_y + 260)
+            pass_x = win_x + (win_w // 2)
+            pass_y = win_y + 260
+            logger.info(f"原生 ctypes 實體點擊 LINE 密碼輸入框座標 ({pass_x}, {pass_y})...")
+            mac_native_click(pass_x, pass_y)
+            time.sleep(0.5)
+
+            # 透過 AppleScript keystroke 逐字打入密碼並 Return
             cmd_login = f'''
             with timeout of 10 seconds
                 tell application "LINE" to activate
                 tell application "System Events"
                     tell process "LINE"
                         set frontmost to true
-                        delay 0.5
-                        try
-                            set value of secure text field 1 of window 1 to "{pwd}"
-                        on error
-                            keystroke "{pwd}"
-                        end try
+                        delay 0.3
+                        keystroke "a" using {{command down}}
+                        delay 0.2
+                        key code 51 -- Backspace 清空舊內容
+                        delay 0.2
+                        keystroke "{pwd}" -- 逐字打入本地密碼
                         delay 0.5
                         key code 36 -- Return 鍵點擊登入
-                        delay 3.0 -- 等待登入後主畫面載入
+                        delay 4.0 -- 等待登入後主畫面載入
                     end tell
                 end tell
             end timeout
@@ -193,6 +231,7 @@ def handle_line_login_if_needed() -> bool:
         logger.warning(f"檢測/處理 LINE 自動登入異常: {e}")
 
     return True
+
 
 
 def search_and_send_image(target_name: str, image_path: str = "") -> bool:
