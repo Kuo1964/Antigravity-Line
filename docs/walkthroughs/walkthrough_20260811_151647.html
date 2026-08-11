@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Bot 控制 Antigravity 雙向溝通管道工具完成報告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>Line Bot 控制 Antigravity 雙向溝通管道工具完成報告</h1>
+<p>我們已成功設計並建置完整的 <strong>Line Bot 控制 Antigravity Agent</strong> 雙向溝通服務！</p>
+<p>---</p>
+<h2>📦 完成的專案組件 (Completed Components)</h2>
+<p>1. <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/config.py">app/config.py</a></strong></p>
+<ul>
+<li>負責從 `.env` 檔或環境變數載入 Line Secret, Access Token, Gemini API Key。</li>
+<li>包含 `is_user_allowed()` 白名單過濾機制。</li>
+</ul>
+<p>2. <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/agent_manager.py">app/agent_manager.py</a></strong></p>
+<ul>
+<li>管理每個使用者的 Antigravity Agent Session 上下文。</li>
+<li>封裝 Google Antigravity SDK，支援異步任務執行、狀態監控與歷史對話重置。</li>
+</ul>
+<p>3. <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/line_handler.py">app/line_handler.py</a></strong></p>
+<ul>
+<li>封裝 Line Messaging API 推播功能 (`send_line_push_message`)。</li>
+</ul>
+<p>4. <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/main.py">app/main.py</a></strong></p>
+<ul>
+<li>提供 FastAPI 入口與 Webhook 端點 (`/webhook`) 及健康檢查 (`/health`)。</li>
+<li>處理異步推播模式（收到 Webhook 秒回 200 OK，背景執行 Agent 任務）。</li>
+<li>支援系統指令：`/reset`, `/status`, `/help`。</li>
+</ul>
+<p>5. <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/Dockerfile">Dockerfile</a></strong> & <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/docker-compose.yml">docker-compose.yml</a></strong></p>
+<ul>
+<li>一鍵式容器化建置與啟動配置。</li>
+</ul>
+<p>6. <strong><a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/README.md">README.md</a></strong></p>
+<ul>
+<li>包含詳細的環境設定步驟、ngrok 本地轉接測試教學與指令對照表。</li>
+</ul>
+<p>---</p>
+<h2>🚀 部署與啟動步驟指引</h2>
+<h3>1. 設定環境變數</h3>
+<p>將 `.env.example` 複製為 `.env` 並編輯：</p>
+<pre><code class="language-bash">
+cp .env.example .env
+</code></pre>
+<p>填入您的 `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `ALLOWED_USER_IDS` 與 `GEMINI_API_KEY`。</p>
+<h3>2. 安裝套件並啟動</h3>
+<pre><code class="language-bash">
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+</code></pre>
+<h3>3. ngrok 本地 Webhook 轉接</h3>
+<pre><code class="language-bash">
+ngrok http 8000
+</code></pre>
+<p>將 ngrok 產生的 HTTPS 網址（如 `https://xxxx.ngrok-free.app/webhook`）貼至 Line Developers Console 的 Webhook URL 欄位並啟用。</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

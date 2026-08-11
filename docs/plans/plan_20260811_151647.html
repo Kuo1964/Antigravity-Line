@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Bot 控制 Antigravity 雙向溝通管道工具導入計畫</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>Line Bot 控制 Antigravity 雙向溝通管道工具導入計畫</h1>
+<p>設計並實作一個透過 Line Messaging API 與 Google Antigravity SDK 整合的雙向控制服務。使用者可透過 Line 訊息對 Antigravity Agent 下達指令，系統透過異步推播模式即時回覆與處理任務結果。</p>
+<p>---</p>
+<h2>🎯 系統架構設計 (System Architecture)</h2>
+<pre><code class="language-">
++------------------+         +-----------------------+         +-------------------------+
+|  Line App User   | &lt;-----&gt; |   Line Messaging API  | &lt;-----&gt; | FastAPI Webhook Server  |
++------------------+         +-----------------------+         +-------------------------+
+                                                                            |
+                                                                            v
+                                                               +-------------------------+
+                                                               |   User Whitelist Auth   |
+                                                               +-------------------------+
+                                                                            |
+                                                                            v
+                                                               +-------------------------+
+                                                               |  Antigravity SDK Agent  |
+                                                               +-------------------------+
+                                                                            |
+                                                                            v
+                                                               +-------------------------+
+                                                               | Session &amp; Context Store |
+                                                               +-------------------------+
+</code></pre>
+<p>---</p>
+<h2>🔑 核心功能模組</h2>
+<p>1. <strong>FastAPI Webhook 服務與驗證</strong></p>
+<ul>
+<li>驗證 Line 簽章 (`X-Line-Signature`)，確保請求安全性。</li>
+<li>Line User ID 白名單過濾機制 (`ALLOWED_USER_IDS`)。</li>
+</ul>
+<p>2. <strong>Line 訊息解析與控制指令處理</strong></p>
+<ul>
+<li>文字指令解析：處理一般對話或專屬控制指令 (如 `/reset`, `/clear`, `/status`, `/help`)。</li>
+<li>異步推播模式：接收 Webhook 後秒回 `200 OK`，背景任務觸發 Agent 執行。</li>
+</ul>
+<p>3. <strong>Google Antigravity SDK Agent 整合與 Session 管理</strong></p>
+<ul>
+<li>為每個授權使用者開闢與維護連續的 Agent Conversation Session。</li>
+<li>整合 `google-antigravity` 套件，處理 Agent 的推論與工具執行。</li>
+<li>任務完成後將結果透過 Line Messaging API 的 `push_message` 發送給使用者。</li>
+</ul>
+<p>4. <strong>部署與容器化</strong></p>
+<ul>
+<li>提供 `docker-compose.yml` 及 `.env.example`。</li>
+<li>提供 `ngrok` 本地測試說明文件。</li>
+</ul>
+<p>---</p>
+<h2>📁 專案檔案結構 (Proposed Directory Structure)</h2>
+<pre><code class="language-">
+Antigravity-Line/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI 進入點與 Webhook 路由
+│   ├── config.py            # 環境變數與驗證設定
+│   ├── line_handler.py      # Line Messaging API SDK 封裝與事件處理
+│   ├── agent_manager.py     # Google Antigravity SDK Agent 與 Session 管理
+│   └── utils.py             # 輔助函式與白名單檢查
+├── .env.example             # 環境變數範例
+├── requirements.txt         # Python 依賴套件
+├── Dockerfile               # 容器化構建檔
+├── docker-compose.yml       # 容器服務編排檔
+└── README.md                # 說明文件與 ngrok 測試教學
+</code></pre>
+<p>---</p>
+<h2>🛠️ Proposed Changes</h2>
+<h3>1. 專案基礎設定與套件依賴</h3>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/requirements.txt">NEW] [requirements.txt</a></p>
+<ul>
+<li>包含 `fastapi`, `uvicorn`, `line-bot-sdk`, `google-antigravity`, `pydantic-settings`, `python-dotenv` 等必要庫。</li>
+</ul>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/.env.example">NEW] [.env.example</a></p>
+<ul>
+<li>設定 `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `ALLOWED_USER_IDS`, `GEMINI_API_KEY` 等環境變數。</li>
+</ul>
+<h3>2. 核心應用程式實作</h3>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/config.py">NEW] [app/config.py</a></p>
+<ul>
+<li>解析與載入環境變數、驗證白名單 User ID 列表。</li>
+</ul>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/agent_manager.py">NEW] [app/agent_manager.py</a></p>
+<ul>
+<li>初始化與維護使用者與 Antigravity Agent Session 的對應關聯。</li>
+<li>支援對話異步執行、歷史紀錄重置 (`reset_session`)。</li>
+</ul>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/line_handler.py">NEW] [app/line_handler.py</a></p>
+<ul>
+<li>Line SDK 初始化、Signature 驗證、處理事件解析、發送 Push Message。</li>
+</ul>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/main.py">NEW] [app/main.py</a></p>
+<ul>
+<li>FastAPI App 主入口，提供 `/webhook` endpoint 以及健康檢查點 `/health`。</li>
+<li>使用 `asyncio` / `BackgroundTasks` 在回應 200 OK 後異步執行 Agent 並推播結果。</li>
+</ul>
+<h3>3. 部署與說明文件</h3>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/Dockerfile">NEW] [Dockerfile</a> & <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/docker-compose.yml">docker-compose.yml</a></p>
+<ul>
+<li>快速建置與部署 FastAPI Webhook 服務。</li>
+</ul>
+<p>#### <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/README.md">NEW] [README.md</a></p>
+<ul>
+<li>完整的設定指引、ngrok 本地轉接測試教學與指令列表。</li>
+</ul>
+<p>---</p>
+<h2>🧪 Verification Plan</h2>
+<h3>自動化/單元測試 (Automated Verification)</h3>
+<ul>
+<li>撰寫 `tests/test_webhook.py` 驗證白名單過濾與特例指令 (`/reset`, `/status`) 解析。</li>
+</ul>
+<h3>手動與即時測試 (Manual Verification)</h3>
+<p>1. 啟動 FastAPI Webhook 服務（`uvicorn app.main:app --reload` 或 `docker-compose up`）。</p>
+<p>2. 使用 ngrok 開啟 Local 轉接：`ngrok http 8000`。</p>
+<p>3. 將 ngrok 產生的 HTTPS 網址貼至 Line Developers Console Webhook URL。</p>
+<p>4. 使用獲授權的 Line 帳號發送對話與指令測試（如「你好，請幫我分析 Antigravity 專案」或「/reset」）。</p>
+<p>5. 驗證非授權帳號發送訊息時是否被封鎖與拒絕。</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

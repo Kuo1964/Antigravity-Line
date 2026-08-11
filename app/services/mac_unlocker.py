@@ -52,6 +52,11 @@ def unlock_mac(password: str) -> bool:
     """
     wake_mac_screen()
 
+    # 檢查是否真的需要解鎖，防止在早上已經登入時亂打字
+    if not is_mac_locked():
+        logger.info("檢測到 macOS 目前並未鎖定，略過密碼輸入程序。")
+        return True
+
     if not password:
         logger.warning("未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
         return True

@@ -7,94 +7,70 @@ from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
-import re
-
-# 經典長輩風格中文早安祝賀圖備用庫 (藍天花草 + 中文早安祝賀語)
-CLASSIC_GOOD_MORNING_CARDS: List[str] = [
-    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=1200&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?w=1200&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80"
-]
-
-def search_bing_good_morning_image() -> Optional[str]:
-    """
-    從 Bing Image Search 即時搜尋線上記錄有『早安 一切順心』經典風格的圖片 URL
-    """
-    keywords = ["早安圖 一切順心", "早安 順心如意", "早安 平安喜樂", "早安 祝賀圖"]
-    day_index = int(time.time() / 86400)
-    query_word = keywords[day_index % len(keywords)]
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
-    search_url = f"https://www.bing.com/images/async?q={httpx.URL(query_word).raw_path.decode()}&first=1&count=25"
-    logger.info(f"正在搜尋網路最新中文早安圖 (關鍵字: '{query_word}')...")
-    
-    try:
-        with httpx.Client(headers=headers, timeout=12.0, follow_redirects=True) as client:
-            res = client.get(search_url)
-            if res.status_code == 200:
-                # 提取所有的 murl (Media URL)
-                urls = re.findall(r'&quot;murl&quot;:&quot;(https?://[^&]+)&quot;', res.text)
-                # 過濾出長相合格的 jpg/png 圖片 URL
-                valid_urls = [u for u in urls if u.lower().endswith(('.jpg', '.jpeg', '.png')) and "bing.com" not in u]
-                if valid_urls:
-                    selected_url = valid_urls[day_index % len(valid_urls)]
-                    logger.info(f"找到符合的線上早安圖 URL: {selected_url}")
-                    return selected_url
-    except Exception as e:
-        logger.warning(f"Bing 圖片即時搜尋失敗: {e}")
-
-    return None
+import glob
+from icrawler.builtin import BingImageCrawler
 
 def fetch_latest_good_morning_image(save_dir: str = "temp") -> str:
     """
-    搜尋並下載當日最新的『早安 一切順心』風格圖片
-    :param save_dir: 圖片儲存目錄
-    :return: 下載後的圖片絕對路徑
+    產生當日最新的早安圖 (使用 icrawler 爬取 Bing 現成早安圖)
     """
     abs_save_dir = os.path.abspath(save_dir)
     os.makedirs(abs_save_dir, exist_ok=True)
-    target_path = os.path.join(abs_save_dir, "good_morning_latest.jpg")
-
-    # 1. 優先從 Bing 即時搜尋線上經典早安圖
-    online_url = search_bing_good_morning_image()
     
-    downloaded = False
-    if online_url:
-        with httpx.Client(timeout=15.0, follow_redirects=True) as client:
-            try:
-                res = client.get(online_url)
-                if res.status_code == 200 and len(res.content) > 10000:
-                    with open(target_path, "wb") as f:
-                        f.write(res.content)
-                    logger.info(f"成功下載網路搜尋到的中文早安圖: {target_path}")
-                    downloaded = True
-            except Exception as e:
-                logger.warning(f"下載線上搜尋圖片失敗: {e}")
+    # 清空暫存資料夾內舊的圖片
+    for old_file in glob.glob(os.path.join(abs_save_dir, "*.*")):
+        try:
+            if os.path.isfile(old_file):
+                os.remove(old_file)
+        except Exception:
+            pass
 
-    # 2. 備用方案：輪播下載經典庫
-    if not downloaded:
-        logger.info("採用備用線上早安圖庫...")
-        day_index = int(time.time() / 86400)
-        fallback_url = CLASSIC_GOOD_MORNING_CARDS[day_index % len(CLASSIC_GOOD_MORNING_CARDS)]
-        with httpx.Client(timeout=15.0, follow_redirects=True) as client:
-            try:
-                res = client.get(fallback_url)
-                if res.status_code == 200:
-                    with open(target_path, "wb") as f:
-                        f.write(res.content)
-                    logger.info(f"成功下載備用早安圖: {target_path}")
-                    downloaded = True
-            except Exception as e:
-                logger.error(f"下載備用圖片失敗: {e}")
-
-    if not os.path.exists(target_path):
-        raise FileNotFoundError("無法取得早安祝賀圖片，請檢查網路連線。")
-
-    return target_path
+    import datetime
+    import random
+    
+    # 建立動態關鍵字，加入今天的星期幾，增加搜尋多樣性
+    weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    today_weekday = weekdays[datetime.datetime.now().weekday()]
+    dynamic_keyword = f"早安 風景 {today_weekday}"
+    
+    logger.info(f"正在使用 icrawler 搜尋網路早安圖 (關鍵字: '{dynamic_keyword}')...")
+    
+    try:
+        # 設定 icrawler 將檔案存入指定資料夾
+        crawler = BingImageCrawler(storage={"root_dir": abs_save_dir})
+        
+        # 爬取 10 張圖片
+        crawler.crawl(keyword=dynamic_keyword, max_num=10)
+        
+        # 尋找下載的圖片
+        downloaded_files = glob.glob(os.path.join(abs_save_dir, "0000*.*"))
+        if not downloaded_files:
+            raise FileNotFoundError("icrawler 未能下載任何圖片。")
+            
+        # 隨機挑選一張圖片
+        selected_img = random.choice(downloaded_files)
+        logger.info(f"從 {len(downloaded_files)} 張圖片中隨機選中: {os.path.basename(selected_img)}")
+        
+        ext = os.path.splitext(selected_img)[1]
+        target_path = os.path.join(abs_save_dir, f"good_morning_latest{ext}")
+        
+        # 重新命名選中的圖片為我們的標準檔名
+        os.rename(selected_img, target_path)
+        
+        # 刪除其他未被選中的圖片，節省空間
+        for img in downloaded_files:
+            if img != selected_img and os.path.exists(img):
+                try:
+                    os.remove(img)
+                except:
+                    pass
+                    
+        logger.info(f"早安圖網路抓取成功！已儲存至: {target_path}")
+        return target_path
+        
+    except Exception as e:
+        logger.error(f"網路爬取早安圖失敗: {e}")
+        raise RuntimeError(f"圖片爬取完全失敗: {e}")
 
 
 def copy_image_to_clipboard(image_path: str) -> bool:
