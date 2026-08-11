@@ -4,12 +4,20 @@
 
 # Python 虛擬環境與快取
 venv/
+.venv/
 env/
 ENV/
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+
+# 測試暫存與圖片檔案
+temp_test*/
+*.jpg
+*.jpeg
+*.png
+history_sent_images.json
 
 # IDE 與系統暫存檔
 .DS_Store
@@ -18,6 +26,3 @@ __pycache__/
 
 # 日誌與測試輸出
 *.log
-*.err
-temp/
-
