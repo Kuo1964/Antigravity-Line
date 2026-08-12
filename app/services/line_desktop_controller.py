@@ -86,20 +86,28 @@ def focus_line_app() -> bool:
     """
     logger.info("正在喚醒並聚焦 LINE 桌面版...")
     try:
-        # 使用 AppleScript 確保 LINE 被帶到最上層且取消隱藏
-        cmd = '''
-        tell application "LINE" to activate
+        # 1. 使用原生 AppleScript 的 reopen 指令，模擬點擊 Dock 圖示來喚起主視窗
+        cmd_reopen = '''
+        tell application "LINE"
+            activate
+            reopen
+        end tell
+        '''
+        subprocess.run(["osascript", "-e", cmd_reopen], check=False)
+        time.sleep(1.5)
+        
+        # 2. 確保視窗取消隱藏 (輔助保險機制)
+        cmd_unhide = '''
         tell application "System Events"
             tell process "LINE"
-                set frontmost to true
                 if exists (window 1) then
                     set value of attribute "AXHidden" to false
                 end if
             end tell
         end tell
         '''
-        subprocess.run(["osascript", "-e", cmd], check=False)
-        time.sleep(1.0)
+        subprocess.run(["osascript", "-e", cmd_unhide], check=False)
+        time.sleep(0.5)
         return True
     except Exception as e:
         logger.error(f"聚焦 LINE App 異常: {e}")

@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 05:59</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 15:43</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">合併 V14.3 LINE 主視窗強制喚醒機制</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 15:43</span>
+                            <span class="timestamp-utc">2026-08-12 07:43 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">將驗證成功的 reopen 喚醒機制合併至主程式 line_desktop_controller.py，徹底解決視窗關閉時無法發送的異常。</p>
+                    <ul class="details-list"><li>移除單純 activate 指令，改用 reopen 模擬 Dock 點擊</li><li>確保早晨喚醒螢幕後必定能彈出 LINE 畫面發送圖片</li></ul>
+                    
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="fix">
                 <div class="timeline-dot"></div>
