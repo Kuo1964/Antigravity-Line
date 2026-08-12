@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 18:46</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 18:56</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="refactor">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-refactor">⚡ REFACTOR</span>
+                            <h2 class="card-title">Candidate 1 & 2: 深層架構重構與 100% 測試向下相容完成</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 18:56</span>
+                            <span class="timestamp-utc">2026-08-12 10:56 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">完成 AgentSessionEngine 與 LineDeliveryAdapter 兩大深層模組重構，隱藏邊界複雜度，並透過日期版本紀錄完整保存歷程</p>
+                    <ul class="details-list"><li>實現 AgentSessionEngine (隱藏 Workspace Injector, Search Grounding, Context 壓減)</li><li>實現 LineDeliveryAdapter (隱藏 2000 字元長訊息分段與桌面 GUI 降級發送)</li><li>補全 100% 舊介面代理與歷史測試相容性</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260812_185639.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260812_185639.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="refactor">
                 <div class="timeline-dot"></div>
