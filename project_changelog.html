@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 18:24</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 18:46</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="refactor">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-refactor">⚡ REFACTOR</span>
+                            <h2 class="card-title">Candidate 2: 完成 LineDeliveryAdapter 深層發送適配器重構</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 18:46</span>
+                            <span class="timestamp-utc">2026-08-12 10:46 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">收攏 Messaging API 與桌面 GUI 發送邏輯，隱藏 2000 字元長訊息自動分段與發送降級機制</p>
+                    <ul class="details-list"><li>建立 app/services/line_delivery_adapter.py 提供統一 deliver_text/deliver_image 入口</li><li>將 line_handler.py 重構為向下相容 Thin Facade</li><li>新增 tests/test_line_delivery_adapter.py 測試套件並驗證 100% 通過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260812_184626.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260812_184626.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="refactor">
                 <div class="timeline-dot"></div>
