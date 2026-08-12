@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from app.config import settings
 
 logger = logging.getLogger("project_manager")
@@ -20,16 +20,11 @@ class ProjectManager:
         """
         自動掃描工作區總目錄及其子目錄下的所有專案資料夾。
         採零延遲目錄特徵比對，避免觸發雲端儲存同步掛起。
-        
-        Returns:
-            List[Dict[str, str]]: 包含專案名稱 (name) 與絕對路徑 (path) 的列表
         """
         projects = []
         seen_paths = set()
 
         ignore_dirs = {".git", ".idea", ".vscode", "node_modules", "venv", "__pycache__", "Colab Notebooks", ".DS_Store"}
-
-        # 主搜尋根目錄：優先使用 WORKSPACE_ROOT (如 我的雲端硬碟)
         root = self.workspace_root or settings.effective_workspace_root
 
         if not root or not os.path.exists(root) or not os.path.isdir(root):
@@ -43,7 +38,6 @@ class ProjectManager:
                 if not os.path.isdir(full_path) or full_path in seen_paths:
                     continue
 
-                # 如果此資料夾是中介分類資料夾 (如 worktemp)，掃描其下層子專案資料夾
                 if item.lower() in ["worktemp", "projects", "workspace", "code", "dev"]:
                     try:
                         for sub_item in os.listdir(full_path):
@@ -60,7 +54,6 @@ class ProjectManager:
                     except Exception:
                         pass
                 else:
-                    # 一般頂層專案資料夾 (如 Yuanta_FCN, TSMC_AI, IBM)
                     seen_paths.add(full_path)
                     projects.append({
                         "name": item,
@@ -71,13 +64,10 @@ class ProjectManager:
         except Exception as e:
             logger.error(f"掃描專案目錄失敗 ({root}): {e}")
 
-        # 依專案名稱排序
         return sorted(projects, key=lambda x: x["name"].lower())
 
     def detect_project_from_prompt(self, prompt: str) -> Optional[Dict[str, str]]:
-        """
-        解析使用者 Prompt 中是否提及特定的專案名稱。
-        """
+        """解析使用者 Prompt 中是否提及特定的專案名稱"""
         if not prompt:
             return None
 
@@ -100,9 +90,7 @@ class ProjectManager:
         return None
 
     def get_project_file_context(self, project_info: Dict[str, Any], prompt: str) -> str:
-        """
-        根據給定的專案資訊與 Prompt，自動掃描與預載專案中的檔案內容。
-        """
+        """根據給定的專案資訊與 Prompt，自動掃描與預載專案中的檔案內容"""
         if not project_info or not isinstance(project_info, dict):
             return ""
 
@@ -119,7 +107,6 @@ class ProjectManager:
 
         try:
             files_in_dir = os.listdir(proj_path)
-            # 1. 檢查 Prompt 是否提及特定檔名 (例如 SETUP_GUIDE.md)
             for f in files_in_dir:
                 if f in prompt:
                     f_path = os.path.join(proj_path, f)
@@ -129,7 +116,6 @@ class ProjectManager:
                             context_lines.append(f"\n[專案檔案 '{f}' 的實際內容]\n{content}")
                             return "\n".join(context_lines)
 
-            # 2. 如果提及「行程」或未指定檔案，預載專案內的 .md 檔案 (如葡萄牙巴黎行程)
             if "行程" in prompt or "規劃" in prompt or not any("[專案檔案" in line for line in context_lines):
                 for f in files_in_dir:
                     if f.endswith(".md"):
@@ -143,7 +129,7 @@ class ProjectManager:
 
         return "\n".join(context_lines)
 
-    def get_active_workspace_summary() -> str:
+    def get_active_workspace_summary(self) -> str:
         """取得目前工作區整體動態摘要"""
         projects = self.list_projects()
         if not projects:
@@ -153,5 +139,4 @@ class ProjectManager:
             summary += f"- {p['name']} (路徑: {p['path']})\n"
         return summary
 
-# 全域專案管理單例
 project_manager = ProjectManager()

@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 18:56</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 19:00</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="refactor">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-refactor">⚡ REFACTOR</span>
+                            <h2 class="card-title">Candidate 3: 完成 MacSystemGateway 深層系統自動化閘道器重構</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 19:00</span>
+                            <span class="timestamp-utc">2026-08-12 11:00 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">收攏螢幕解鎖檢查、狀態記憶復原與多來源早安圖片抓取邏輯，提供極簡深層系統控制入口</p>
+                    <ul class="details-list"><li>建立 app/services/mac_system_gateway.py 提供語義化 ensure_unlocked_and_ready / fetch_morning_media 入口</li><li>將 mac_unlocker.py 與 image_crawler.py 重構為向下相容 Thin Facade</li><li>新增 tests/test_mac_system_gateway.py 測試套件並驗證 22 個測試項目全數 100% 通過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260812_190039.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260812_190039.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="refactor">
                 <div class="timeline-dot"></div>

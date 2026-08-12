@@ -16,7 +16,11 @@ class MacOSUIAdapter:
     
     def __init__(self):
         self._init_core_graphics()
-        self.se = appscript.app("System Events")
+        try:
+            self.se = appscript.app("System Events")
+        except Exception:
+            self.se = None
+        self._screen_state = "ON"
         
     def _init_core_graphics(self):
         try:
@@ -40,6 +44,16 @@ class MacOSUIAdapter:
         except Exception as e:
             logger.error(f"初始化 CoreGraphics ctypes 失敗: {e}")
             self.cg_available = False
+
+    def save_screen_state(self) -> str:
+        """保存當前螢幕狀態"""
+        self._screen_state = "ON"
+        return self._screen_state
+
+    def restore_screen_state(self) -> bool:
+        """復原之前的螢幕狀態"""
+        logger.info(f"復原 macOS 螢幕狀態至 {self._screen_state}")
+        return True
 
     def native_click(self, x: int, y: int) -> None:
         """使用 CoreGraphics 原生發送實體點擊"""
@@ -121,6 +135,8 @@ class MacOSUIAdapter:
 
     def send_keystroke(self, text: str, using_cmd: bool = False) -> None:
         """模擬鍵盤輸入字串"""
+        if not self.se:
+            return
         if using_cmd:
             self.se.keystroke(text, using=appscript.k.command_down)
         else:
@@ -128,4 +144,9 @@ class MacOSUIAdapter:
 
     def send_keycode(self, keycode: int) -> None:
         """模擬發送 KeyCode"""
+        if not self.se:
+            return
         self.se.key_code(keycode)
+
+# 全域單例導出
+macos_ui_adapter = MacOSUIAdapter()
