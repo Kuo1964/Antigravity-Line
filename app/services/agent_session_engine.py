@@ -1,4 +1,5 @@
 import logging
+import time
 import asyncio
 from typing import Dict, Any, Optional, List
 from app.config import settings
@@ -22,7 +23,7 @@ class AgentSessionEngine:
         if user_id not in self.sessions:
             self.sessions[user_id] = {
                 "history": [],
-                "created_at": asyncio.get_event_loop().time()
+                "created_at": time.time()
             }
             logger.info(f"已為使用者 {user_id} 初始化 AgentSessionEngine 核心 Session")
         return self.sessions[user_id]
