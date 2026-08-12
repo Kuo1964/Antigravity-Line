@@ -17,6 +17,8 @@ class AgentSessionEngine:
         self.sessions: Dict[str, Any] = {}
         # 紀錄每個使用者是否正在執行任務
         self.active_tasks: Dict[str, bool] = {}
+        # 紀錄每個使用者設定的專案 Context
+        self.user_projects: Dict[str, Any] = {}
 
     def get_or_create_session(self, user_id: str) -> Dict[str, Any]:
         """取得或初始化使用者的對話 Session Context"""
@@ -40,11 +42,25 @@ class AgentSessionEngine:
         """檢查使用者是否有正在執行的 Agent 任務"""
         return self.active_tasks.get(user_id, False)
 
-    def _inject_workspace_context(self, prompt: str) -> str:
+    def set_user_project(self, user_id: str, project_info: Dict[str, Any]) -> None:
+        """設定特定使用者的專案內容與路徑 Context"""
+        self.user_projects[user_id] = project_info
+
+    def get_user_project(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """取得特定使用者的專案內容與路徑 Context"""
+        return self.user_projects.get(user_id)
+
+    def _inject_workspace_context(self, user_id: str, prompt: str) -> str:
         """內部私有方法：自動檢視並注入專案檔案與結構 (Workspace Injector)"""
         try:
+            # 優先使用該使用者專屬設定的專案
+            user_proj = self.get_user_project(user_id)
+            if user_proj:
+                proj_name = user_proj.get("name", "")
+                proj_path = user_proj.get("path", "")
+                return f"[專案工作區脈絡資訊]\n專案名稱: {proj_name}\n專案路徑: {proj_path}\n\n[使用者需求]\n{prompt}"
+            
             from app.project_manager import project_manager
-            # 若包含專案控制關鍵字，自動注入對應工作區檔案結構
             workspace_summary = project_manager.get_active_workspace_summary()
             if workspace_summary:
                 return f"[專案工作區脈絡資訊]\n{workspace_summary}\n\n[使用者需求]\n{prompt}"
@@ -83,7 +99,7 @@ class AgentSessionEngine:
                 )
 
             # 自動注入 Workspace 上下文
-            augmented_prompt = self._inject_workspace_context(prompt)
+            augmented_prompt = self._inject_workspace_context(user_id, prompt)
             # 自動壓減與讀取歷史紀錄
             history_context = self._compress_history_if_needed(session["history"])
 
