@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 16:18</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 18:24</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,46 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="refactor">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-refactor">⚡ REFACTOR</span>
+                            <h2 class="card-title">Candidate 1: 完成 AgentSessionEngine 深層模組重構</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 18:24</span>
+                            <span class="timestamp-utc">2026-08-12 10:24 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">將分散的專案檔案注入、Search Grounding 工具綁定與歷史 context 隱藏於 AgentSessionEngine，大幅簡化介面</p>
+                    <ul class="details-list"><li>建立 app/services/agent_session_engine.py 提供極簡 process_user_turn 介面</li><li>將 agent_manager.py 重構為向下相容的 Thin Facade</li><li>新增 tests/test_agent_session_engine.py 測試套件並驗證 100% 通過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260812_182428.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260812_182428.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="refactor">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-refactor">⚡ REFACTOR</span>
+                            <h2 class="card-title">架構重構 V16：Scheduling Subsystem Consolidation</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 16:31</span>
+                            <span class="timestamp-utc">2026-08-12 08:31 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">將排程子系統收攏至單一事實來源，解決 Bash 腳本中的抽象洩漏問題。</p>
+                    <ul class="details-list"><li>建立 schedule_tasks.json 單一事實來源，未來增減對象免改 code</li><li>建立 Python SchedulerAdapter 管理 User/Root Crontab 與 pmset</li><li>實作 Marker 安全覆寫機制，不影響使用者其他個人的 cron 任務</li></ul>
+                    
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="refactor">
                 <div class="timeline-dot"></div>
