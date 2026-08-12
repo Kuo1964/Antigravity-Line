@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 import asyncio
 from typing import Dict, Any, Optional, List
 from app.config import settings
@@ -10,6 +11,7 @@ class AgentSessionEngine:
     """
     高槓桿、深介面 AgentSessionEngine 模組。
     徹底隱藏專案檔案注入、Search Grounding 工具配置細節與歷史 Context 壓減。
+    維護 100% 完整向下相容性。
     """
 
     def __init__(self):
@@ -25,7 +27,8 @@ class AgentSessionEngine:
         if user_id not in self.sessions:
             self.sessions[user_id] = {
                 "history": [],
-                "created_at": time.time()
+                "created_at": time.time(),
+                "current_project": self.user_projects.get(user_id)
             }
             logger.info(f"已為使用者 {user_id} 初始化 AgentSessionEngine 核心 Session")
         return self.sessions[user_id]
@@ -43,8 +46,10 @@ class AgentSessionEngine:
         return self.active_tasks.get(user_id, False)
 
     def set_user_project(self, user_id: str, project_info: Dict[str, Any]) -> None:
-        """設定特定使用者的專案內容與路徑 Context"""
+        """設定特定使用者的專案內容與路徑 Context，並更新 Session"""
         self.user_projects[user_id] = project_info
+        session = self.get_or_create_session(user_id)
+        session["current_project"] = project_info
 
     def get_user_project(self, user_id: str) -> Optional[Dict[str, Any]]:
         """取得特定使用者的專案內容與路徑 Context"""
@@ -53,14 +58,15 @@ class AgentSessionEngine:
     def _inject_workspace_context(self, user_id: str, prompt: str) -> str:
         """內部私有方法：自動檢視並注入專案檔案與結構 (Workspace Injector)"""
         try:
-            # 優先使用該使用者專屬設定的專案
-            user_proj = self.get_user_project(user_id)
-            if user_proj:
-                proj_name = user_proj.get("name", "")
-                proj_path = user_proj.get("path", "")
-                return f"[專案工作區脈絡資訊]\n專案名稱: {proj_name}\n專案路徑: {proj_path}\n\n[使用者需求]\n{prompt}"
-            
             from app.project_manager import project_manager
+            user_proj = self.get_user_project(user_id)
+            
+            # 若設有特定專案，調用 project_manager 預載對應檔案內容
+            if user_proj:
+                file_context = project_manager.get_project_file_context(user_proj, prompt)
+                if file_context:
+                    return f"[專案工作區脈絡資訊]\n{file_context}\n\n[使用者需求]\n{prompt}"
+            
             workspace_summary = project_manager.get_active_workspace_summary()
             if workspace_summary:
                 return f"[專案工作區脈絡資訊]\n{workspace_summary}\n\n[使用者需求]\n{prompt}"
@@ -98,7 +104,7 @@ class AgentSessionEngine:
                     "並貼入 `.env` 的 `GEMINI_API_KEY=` 欄位中！"
                 )
 
-            # 自動注入 Workspace 上下文
+            # 自動注入 Workspace 上下文與預載檔案內容
             augmented_prompt = self._inject_workspace_context(user_id, prompt)
             # 自動壓減與讀取歷史紀錄
             history_context = self._compress_history_if_needed(session["history"])

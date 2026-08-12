@@ -77,12 +77,6 @@ class ProjectManager:
     def detect_project_from_prompt(self, prompt: str) -> Optional[Dict[str, str]]:
         """
         解析使用者 Prompt 中是否提及特定的專案名稱。
-        
-        Args:
-            prompt: 使用者傳入的文字指令
-            
-        Returns:
-            Optional[Dict[str, str]]: 匹配成功的專案資訊，未匹配則回傳 None
         """
         if not prompt:
             return None
@@ -90,16 +84,13 @@ class ProjectManager:
         prompt_lower = prompt.lower()
         projects = self.list_projects()
 
-        # 1. 完全或精準比對 (不分大小寫)
         for proj in projects:
             p_name = proj["name"].lower()
             if p_name in prompt_lower or p_name.replace("-", "") in prompt_lower or p_name.replace("_", "") in prompt_lower:
                 logger.info(f"從對話中精準匹配到目標專案: {proj['name']} (路徑: {proj['path']})")
                 return proj
 
-        # 2. 部分關鍵字或去除符號比對
         for proj in projects:
-            # 拆解專案名稱中的關鍵詞 (如 Antigravity-Line -> antigravity, line)
             tokens = [t for t in proj["name"].lower().replace("-", " ").replace("_", " ").split() if len(t) > 3]
             for token in tokens:
                 if token in prompt_lower:
@@ -107,6 +98,60 @@ class ProjectManager:
                     return proj
 
         return None
+
+    def get_project_file_context(self, project_info: Dict[str, Any], prompt: str) -> str:
+        """
+        根據給定的專案資訊與 Prompt，自動掃描與預載專案中的檔案內容。
+        """
+        if not project_info or not isinstance(project_info, dict):
+            return ""
+
+        proj_name = project_info.get("name", "")
+        proj_path = project_info.get("path", "")
+
+        context_lines = [
+            f"專案名稱: {proj_name}",
+            f"專案路徑: {proj_path}"
+        ]
+
+        if not proj_path or not os.path.exists(proj_path) or not os.path.isdir(proj_path):
+            return "\n".join(context_lines)
+
+        try:
+            files_in_dir = os.listdir(proj_path)
+            # 1. 檢查 Prompt 是否提及特定檔名 (例如 SETUP_GUIDE.md)
+            for f in files_in_dir:
+                if f in prompt:
+                    f_path = os.path.join(proj_path, f)
+                    if os.path.isfile(f_path):
+                        with open(f_path, "r", encoding="utf-8", errors="ignore") as fh:
+                            content = fh.read(2000)
+                            context_lines.append(f"\n[專案檔案 '{f}' 的實際內容]\n{content}")
+                            return "\n".join(context_lines)
+
+            # 2. 如果提及「行程」或未指定檔案，預載專案內的 .md 檔案 (如葡萄牙巴黎行程)
+            if "行程" in prompt or "規劃" in prompt or not any("[專案檔案" in line for line in context_lines):
+                for f in files_in_dir:
+                    if f.endswith(".md"):
+                        f_path = os.path.join(proj_path, f)
+                        if os.path.isfile(f_path):
+                            with open(f_path, "r", encoding="utf-8", errors="ignore") as fh:
+                                content = fh.read(2000)
+                                context_lines.append(f"\n[專案檔案 '{f}' 的實際內容]\n{content}")
+        except Exception as e:
+            logger.warning(f"掃描與預載專案檔案內容失敗: {e}")
+
+        return "\n".join(context_lines)
+
+    def get_active_workspace_summary() -> str:
+        """取得目前工作區整體動態摘要"""
+        projects = self.list_projects()
+        if not projects:
+            return ""
+        summary = "已知專案清單:\n"
+        for p in projects[:10]:
+            summary += f"- {p['name']} (路徑: {p['path']})\n"
+        return summary
 
 # 全域專案管理單例
 project_manager = ProjectManager()
