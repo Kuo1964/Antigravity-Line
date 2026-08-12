@@ -17,16 +17,26 @@ def fetch_latest_good_morning_image(save_dir: str = "temp") -> str:
     abs_save_dir = os.path.abspath(save_dir)
     os.makedirs(abs_save_dir, exist_ok=True)
     
-    # 清空暫存資料夾內舊的圖片
+    import datetime
+    import random
+    
+    # 檢查是否已有今日下載好的快取圖片
+    today = datetime.datetime.now().date()
+    existing_latest = glob.glob(os.path.join(abs_save_dir, "good_morning_latest.*"))
+    if existing_latest:
+        latest_file = existing_latest[0]
+        file_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(latest_file)).date()
+        if file_mtime == today:
+            logger.info(f"偵測到今日已下載過圖片 ({latest_file})，直接使用快取，跳過網路爬取！")
+            return latest_file
+
+    # 清空暫存資料夾內舊的圖片 (新的一天，清空昨天的舊圖)
     for old_file in glob.glob(os.path.join(abs_save_dir, "*.*")):
         try:
             if os.path.isfile(old_file):
                 os.remove(old_file)
         except Exception:
             pass
-
-    import datetime
-    import random
     
     # 建立動態關鍵字，加入今天的星期幾，增加搜尋多樣性
     weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
@@ -47,23 +57,27 @@ def fetch_latest_good_morning_image(save_dir: str = "temp") -> str:
         if not downloaded_files:
             raise FileNotFoundError("icrawler 未能下載任何圖片。")
             
+        # 過濾下載的圖片，確保檔案大小大於 30 KB (30720 bytes)，避免選到破圖
+        valid_images = []
+        for img in downloaded_files:
+            if os.path.exists(img) and os.path.getsize(img) > 30720:
+                valid_images.append(img)
+                
+        if not valid_images:
+            raise FileNotFoundError("icrawler 未能下載任何完整的圖片 (或皆小於 30 KB)。")
+            
         # 隨機挑選一張圖片
-        selected_img = random.choice(downloaded_files)
-        logger.info(f"從 {len(downloaded_files)} 張圖片中隨機選中: {os.path.basename(selected_img)}")
+        selected_img = random.choice(valid_images)
+        logger.info(f"從 {len(valid_images)} 張完整圖片中隨機選中: {os.path.basename(selected_img)}")
         
         ext = os.path.splitext(selected_img)[1]
         target_path = os.path.join(abs_save_dir, f"good_morning_latest{ext}")
         
-        # 重新命名選中的圖片為我們的標準檔名
-        os.rename(selected_img, target_path)
+        # 將選中的圖片複製並命名為我們的標準檔名 (不刪除原檔供後續檢查)
+        import shutil
+        shutil.copy2(selected_img, target_path)
         
-        # 刪除其他未被選中的圖片，節省空間
-        for img in downloaded_files:
-            if img != selected_img and os.path.exists(img):
-                try:
-                    os.remove(img)
-                except:
-                    pass
+        # (V10: 取消刪除其他未選中與舊圖片的動作，保留供使用者後續檢查與驗屍)
                     
         logger.info(f"早安圖網路抓取成功！已儲存至: {target_path}")
         return target_path

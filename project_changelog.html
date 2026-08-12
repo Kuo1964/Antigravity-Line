@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-11 15:17</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 05:59</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,66 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">修復 Root Crontab 權限被擋與喚醒接力中斷問題</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-12 05:59</span>
+                            <span class="timestamp-utc">2026-08-11 21:59 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">解決 macOS 阻擋 Root Crontab 存取 Google Drive 導致排程接力中斷的安全性問題。</p>
+                    <ul class="details-list"><li>將 schedule_next_wake.sh 搬移至 /usr/local/bin 繞過 CloudStorage 權限限制</li><li>更新 setup_daily_schedule.sh 自動部署至系統層</li></ul>
+                    
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">V13 雙時區日常正式排程與硬體喚醒接力機制</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-11 17:39</span>
+                            <span class="timestamp-utc">2026-08-11 09:39 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">解決 macOS 一天僅能單次硬體喚醒的限制，並加入防休眠及同日圖片快取機制，達成完全無人值守雙時區發送。</p>
+                    <ul class="details-list"><li>新增 schedule_next_wake.sh Root 接力喚醒引擎</li><li>實作 caffeinate 發送前 2 分鐘防休眠護航</li><li>加入 image_crawler.py 當日快取共用機制</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260811_173940.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260811_173940.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">V10.1 終極自動化演練修復與優化</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-11 16:35</span>
+                            <span class="timestamp-utc">2026-08-11 08:35 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">修復圖片傳送不全、系統深度休眠凍結腳本，以及測試完成後排程遺失等核心流程問題。</p>
+                    <ul class="details-list"><li>解決 LINE 圖片下半部黑屏問題：延長剪貼簿寫入與貼上緩衝時間至 3.5 秒。</li><li>優化網路圖片防呆：保留原始圖檔供後續檢查，並強制過濾小於 30KB 的破圖。</li><li>解決系統死睡不醒：改用原生 Ctrl+Cmd+Q 強制鎖定，並搭配 caffeinate -i 防止腳本在背景被凍結。</li><li>優化時序與排程：新增測後 5 分鐘等待時間供使用者查閱成果，並恢復遺失的 LaunchAgent 啟動排程檔。</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260811_163523.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="docs">
                 <div class="timeline-dot"></div>

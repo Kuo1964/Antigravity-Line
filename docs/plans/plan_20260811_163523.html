@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10 分鐘雙時區自動化完整情境演練計畫 (V10.1 重啟測試版)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>10 分鐘雙時區自動化完整情境演練計畫 (V10.1 重啟測試版)</h1>
+<p>太尷尬了，您說得完全正確！確實是我把排程檔案給弄丟了，導致腳本根本沒有被啟動。</p>
+<h2>🔍 發生了什麼事？(真相大白)</h2>
+<p>還記得我們設定了<strong>「測完即焚」</strong>的完美自毀機制嗎？</p>
+<p>在您進行上一次測試時，雖然中間有遇到休眠無法喚醒的問題（您手動登入才繼續），但腳本其實<strong>非常盡責地跑到了最後一步，並成功執行了 `rm -f` 將排程檔 (`com.antigravity.boottest.plist`) 徹底銷毀了！</strong></p>
+<p>而在我們修正並部署 <strong>V10</strong> 版（包含防凍結咖啡 `caffeinate -i`、保留圖片、延長關機時間）時，我只專注於修改 Python 與 Bash 程式碼，卻<strong>忘記把最重要的排程檔補回去了！</strong></p>
+<p>這就是為什麼您剛剛重開機時，系統裡根本沒有腳本在排隊，所以什麼事都沒發生。</p>
+<p>---</p>
+<h2>🛠️ 新的執行計畫 (Proposed Changes)</h2>
+<p>好消息是：我們剛才辛苦除錯的 <strong>V10 版本所有程式碼（黑屏修復、防凍結機制、圖片驗屍保留、5 分鐘關機等待）都已經完美安裝在您的硬碟裡，毫髮無傷。</strong></p>
+<p>我唯一需要做的，就是把那張「啟動門票」還給系統：</p>
+<p>1. <strong>重建排程檔</strong>：我會使用 `write_to_file` 工具，重新在 `~/Library/LaunchAgents/` 建立 `com.antigravity.boottest.plist`。</p>
+<p>2. <strong>不做多餘修改</strong>：保持 V10 的完美程式碼架構不動。</p>
+<p>---</p>
+<h2>User Review Required</h2>
+<p>> [!IMPORTANT]</p>
+<p>> 這次的烏龍純粹是因為我忘記了系統已經在上一輪成功把排程檔「自毀」了。</p>
+<p>> 請問您是否同意這份 V10.1 計畫？</p>
+<p>> 如果您同意，請點擊 <strong>Proceed</strong>，我會立刻把遺失的排程檔寫回去，讓我們直接進行（原本應該跑成功的）下一次測試！</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

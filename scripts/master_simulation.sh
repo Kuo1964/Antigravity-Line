@@ -24,8 +24,8 @@ venv/bin/python scripts/send_daily_morning_card.py --target Private >> "$LOG_FIL
 # 4. 強制進入鎖定 (模擬休眠)
 echo ">>> [T=3.5] 早晨發送完畢。強制鎖定螢幕 (Ctrl+Cmd+Q)... <<<" >> "$LOG_FILE"
 osascript -e 'tell application "System Events" to keystroke "q" using {control down, command down}'
-echo ">>> 腳本進入背景，模擬夜晚等待 150 秒 <<<" >> "$LOG_FILE"
-sleep 150
+echo ">>> 腳本進入背景，模擬夜晚等待 150 秒 (加上 caffeinate 確保腳本不休眠) <<<" >> "$LOG_FILE"
+caffeinate -i sleep 150
 
 # 5. 喚醒並執行夜間發送任務
 echo ">>> [T=5.5] 喚醒系統，準備執行夜間發送任務 <<<" >> "$LOG_FILE"
@@ -33,12 +33,16 @@ caffeinate -u -t 2 &
 sleep 2
 venv/bin/python scripts/send_daily_morning_card.py --target Private >> "$LOG_FILE" 2>&1
 
+# 5.5. 發送完畢後，等待 5 分鐘供使用者驗屍與檢查
+echo ">>> [T=6] 夜間發送完畢，腳本暫停 5 分鐘 (300 秒) 供您檢查結果與圖片 <<<" >> "$LOG_FILE"
+caffeinate -i sleep 300
+
 # 6. 刪除本次測試的排程檔 (只刪除檔案，不 unload，避免腳本被系統強制中止)
-echo ">>> [T=8] 刪除測試排程 (LaunchAgent) 檔案，確保下次開機不再執行 <<<" >> "$LOG_FILE"
+echo ">>> [T=11] 刪除測試排程 (LaunchAgent) 檔案，確保下次開機不再執行 <<<" >> "$LOG_FILE"
 rm -f "$HOME/Library/LaunchAgents/com.antigravity.boottest.plist"
 
 # 7. 關機前退場準備 (關閉應用程式)
-echo ">>> [T=8] 執行關機前優雅退場任務 (關閉 LINE 與 Antigravity) <<<" >> "$LOG_FILE"
+echo ">>> [T=11] 執行關機前優雅退場任務 (關閉 LINE 與 Antigravity) <<<" >> "$LOG_FILE"
 osascript -e 'tell application "LINE" to quit'
 osascript -e 'tell application "Antigravity" to quit'
 sleep 5
