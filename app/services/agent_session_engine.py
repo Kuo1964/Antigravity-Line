@@ -65,11 +65,11 @@ class AgentSessionEngine:
             if user_proj:
                 file_context = project_manager.get_project_file_context(user_proj, prompt)
                 if file_context:
-                    return f"[專案工作區脈絡資訊]\n{file_context}\n\n[使用者需求]\n{prompt}"
+                    return f"[系統權限宣告]\n[專案工作區脈絡資訊]\n{file_context}\n\n[使用者需求]\n{prompt}"
             
             workspace_summary = project_manager.get_active_workspace_summary()
             if workspace_summary:
-                return f"[專案工作區脈絡資訊]\n{workspace_summary}\n\n[使用者需求]\n{prompt}"
+                return f"[系統權限宣告]\n[專案工作區脈絡資訊]\n{workspace_summary}\n\n[使用者需求]\n{prompt}"
         except Exception as e:
             logger.warning(f"注入專案工作區脈絡失敗 (可安全忽略): {e}")
         return prompt
