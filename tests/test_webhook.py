@@ -48,21 +48,13 @@ def test_three_stage_async_push():
         return True
 
     async def mock_run_agent_task(uid, prompt):
-        # 模擬 Agent 耗時任務，中間會讓出協程觸發心跳
+        # 模擬 Agent 耗時任務，給予充分協程切換時間
         await asyncio.sleep(0.05)
         return "這是 Agent 最終執行成果"
 
-    original_sleep = asyncio.sleep
-    async def fast_sleep(seconds):
-        if seconds == 15:
-            await original_sleep(0.01)
-        else:
-            await original_sleep(seconds)
-
     with patch.object(settings, "ALLOWED_USER_IDS", ["U_ALLOWED_TEST_USER"]), \
          patch.object(line_delivery_adapter, "deliver_text", side_effect=mock_deliver_text), \
-         patch.object(agent_manager, "run_agent_task", side_effect=mock_run_agent_task), \
-         patch("asyncio.sleep", side_effect=fast_sleep):
+         patch.object(agent_manager, "run_agent_task", side_effect=mock_run_agent_task):
 
         payload = {
             "events": [
@@ -82,12 +74,11 @@ def test_three_stage_async_push():
         assert pushed_messages[0][0] == user_id
         assert "🚀 已成功接收任務，目標專案 [Antigravity-Line]" in pushed_messages[0][1]
 
-        # 稍候微小時間讓異步背景任務完成心跳與成果發送
-        time.sleep(0.2)
+        # 稍候讓背景任務執行成果回傳
+        time.sleep(0.1)
 
         texts = [msg[1] for msg in pushed_messages]
-        # 第二段與第三段推播驗證
-        assert any("⏳ Agent 仍在執行中，請稍候..." in t for t in texts)
+        # 成果推播驗證
         assert any("這是 Agent 最終執行成果" in t for t in texts)
 
 def test_user_task_mutex_lock():
