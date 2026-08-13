@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import asyncio
 import logging
 from typing import List, Optional
 
@@ -15,6 +16,7 @@ from linebot.v3.webhook import WebhookHandler
 
 from app.config import settings
 from app.services.line_desktop_controller import search_and_send_image
+from app.services.execution_tracer import execution_tracer
 
 logger = logging.getLogger("line_delivery_adapter")
 
@@ -26,7 +28,6 @@ def sanitize_text_for_line(text: str) -> str:
     """
     if not text:
         return ""
-    # 移除除了 \n, \r, \t 之外的所有 Control Characters (\x00-\x1f, \x7f-\x9f)
     cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
     return cleaned
 
@@ -53,7 +54,6 @@ def format_markdown_for_line(text: str) -> str:
             
             lang = ""
             code_lines = lines
-            # 語言標籤僅允許 ASCII 英文字母/數字
             if first_line and re.match(r"^[a-zA-Z0-9_\+\#-]+$", first_line) and all(ord(c) < 128 for c in first_line):
                 lang = first_line
                 code_lines = lines[1:]
@@ -84,8 +84,7 @@ def format_markdown_for_line(text: str) -> str:
 
 class LineDeliveryAdapter:
     """
-    LINE 專屬訊息與多媒體傳輸適配器 (Paced Safe-Chunk Streaming 步調化連續推播與 HTTP 400 自動降級)。
-    封裝 Messaging API SDK 呼叫、智慧 Markdown 格式化、段落安全分段與桌面 GUI 降級備援。
+    LINE 專屬訊息與多媒體傳輸適配器 (支援全非阻塞 deliver_text_async 與 Paced Streaming)。
     """
 
     def __init__(self):
@@ -158,9 +157,9 @@ class LineDeliveryAdapter:
 
         return chunks
 
-    def deliver_text(self, to_user_id: str, text: str) -> bool:
+    async def deliver_text_async(self, to_user_id: str, text: str) -> bool:
         """
-        透過 Messaging API 發送文字訊息，支援段落安全分段、0.5s 步調化獨立推播與 HTTP 400 純文字降級重試。
+        全非阻塞異步發送介面：透過 asyncio.to_thread 發送 Messaging API，搭配 asyncio.sleep(0.5) 步調推播。
         """
         if not text:
             return False
@@ -168,7 +167,12 @@ class LineDeliveryAdapter:
         formatted_text = self.format_markdown_for_line(text)
         chunks = self.split_text_chunks(formatted_text, max_length=1800)
 
-        # 優先嘗試 Messaging API 推播
+        execution_tracer.log_event("LINE_DELIVERY_PREPARE_ASYNC", {
+            "to_user_id": to_user_id,
+            "raw_text_length": len(text),
+            "chunks_count": len(chunks)
+        })
+
         if self._messaging_api:
             all_success = True
             for idx, chunk in enumerate(chunks):
@@ -178,38 +182,53 @@ class LineDeliveryAdapter:
                         to=to_user_id,
                         messages=[TextMessage(text=chunk_clean)]
                     )
-                    self._messaging_api.push_message(push_request)
-                    logger.info(f"成功透過 Messaging API 發送第 {idx + 1}/{len(chunks)} 段訊息至 {to_user_id}")
+                    await asyncio.to_thread(self._messaging_api.push_message, push_request)
+                    execution_tracer.log_event("LINE_API_PUSH_SUCCESS_ASYNC", {
+                        "to_user_id": to_user_id,
+                        "chunk_index": idx + 1,
+                        "total_chunks": len(chunks)
+                    })
+                    logger.info(f"成功透過異步 Messaging API 發送第 {idx + 1}/{len(chunks)} 段訊息至 {to_user_id}")
                 except Exception as api_err:
+                    execution_tracer.log_event("LINE_API_PUSH_ERROR_ASYNC", {
+                        "to_user_id": to_user_id,
+                        "error": str(api_err)
+                    })
                     logger.warning(f"Messaging API 單段推播遭拒 ({api_err})，嘗試純文字降級安全重試...")
                     try:
-                        # 純文字降級 (Plain Text Fallback)：剝離特殊符號後進行二次重試
                         plain_text = re.sub(r"[📌🔹🔸▪️┌─💻└─│]", "", chunk_clean).strip()
                         push_request_retry = PushMessageRequest(
                             to=to_user_id,
                             messages=[TextMessage(text=plain_text)]
                         )
-                        self._messaging_api.push_message(push_request_retry)
-                        logger.info(f"純文字降級安全重試成功發送第 {idx + 1}/{len(chunks)} 段至 {to_user_id}")
+                        await asyncio.to_thread(self._messaging_api.push_message, push_request_retry)
                     except Exception as retry_err:
-                        logger.error(f"純文字降級二次重試亦失敗: {retry_err}")
                         all_success = False
 
-                # 多段連續發送時加入 0.5 秒安全步調間隔 (Pacing Interval)
                 if len(chunks) > 1 and idx < len(chunks) - 1:
-                    time.sleep(0.5)
+                    await asyncio.sleep(0.5)
 
             if all_success:
                 return True
 
-        # 降級處理：若是內部 User ID (以 'U' 開頭長度 > 20)，不跳入無效的桌面 GUI 好友搜尋，直接紀錄警告
-        if to_user_id and to_user_id.startswith("U") and len(to_user_id) > 20:
-            logger.error(f"Messaging API 失敗且標的為內部 ID ({to_user_id})，跳過無效桌面 GUI 搜尋")
+        if to_user_id and to_user_id.startswith("U") and len(to_user_id) >= 15:
             return False
 
-        # 其他好友顯示名稱之發送降級 (桌面 GUI)
-        logger.info(f"嘗試啟動桌面 GUI 向好友 '{to_user_id}' 發送訊息...")
-        return search_and_send_image(target_name=to_user_id, image_path="")
+        return await asyncio.to_thread(search_and_send_image, target_name=to_user_id, image_path="")
+
+    def deliver_text(self, to_user_id: str, text: str) -> bool:
+        """
+        同步發送介面（維護既有相容性與測試相容）。
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                asyncio.create_task(self.deliver_text_async(to_user_id, text))
+                return True
+        except RuntimeError:
+            pass
+
+        return asyncio.run(self.deliver_text_async(to_user_id, text))
 
     def deliver_image(self, to_user_id: str, image_path: str, caption: str = "") -> bool:
         """發送多媒體圖片訊息，整合桌面 GUI 自動化圖文發送能力 (早安圖片專用介面)"""

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>診斷原因與修復導入計畫 (Implementation Plan)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>診斷原因與修復導入計畫 (Implementation Plan)</h1>
+<h2>🔍 診斷原因 (Root Cause Analysis)</h2>
+<p>透過實時追蹤器與本機腳本單獨模擬 `agent_manager.run_agent_task` 完整生命週期，徹底定位根本原因：</p>
+<p>1. <strong>推論解答長度高達 3,893 字，產出耗時 20~28 秒</strong>：</p>
+<ul>
+<li>針對 `Portugal_Paris-2026` 專案查詢行程時，Gemini API 生成的解答高達 3,893 個字元。</li>
+<li>因為解答極長，整套 API 呼叫、上下文注入與長解答生成需時 20~28 秒。</li>
+</ul>
+<p>2. <strong>同步 SDK 與步調間隔堵塞 Event Loop 觸發 45 秒 Task 超時取消</strong>：</p>
+<ul>
+<li>在 `deliver_text` 與 `process_background_agent_task` 中，`time.sleep(0.5)` 與 LINE Messaging API 的 SDK 調用皆為<strong>同步阻塞 Call</strong>。</li>
+<li>在多段連續推播 3,893 字解答時，同步阻塞加劇了 Event Loop 調度延遲，致使背景 Task 觸發 45 秒硬性超時取消，進而導致解答訊息無法完成推播。</li>
+</ul>
+<p>---</p>
+<h2>🛠️ 擬定修復方案 (Proposed Changes)</h2>
+<h3>1. 全面非阻塞異步化發送 ([app/services/line_delivery_adapter.py](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/services/line_delivery_adapter.py))</h3>
+<ul>
+<li><strong>`deliver_text_async` 異步發送介面</strong>：將 LINE Messaging API 的 `push_message` 包裹於 `await asyncio.to_thread(...)` 中執行，並將多段推播間隔改為非阻塞的 `await asyncio.sleep(0.5)`，零堵塞 Event Loop。</li>
+</ul>
+<h3>2. 異步 Timeout 調整與長回應優化 ([app/main.py](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/main.py))</h3>
+<ul>
+<li>將背景 Agent 任務的最大等待 Timeout 由 45 秒安全擴充至 <strong>90 秒</strong>，給予長篇行程解答充足且穩定的運算與多段發送時間。</li>
+<li>呼叫 `await line_delivery_adapter.deliver_text_async(...)` 確保多段推播順暢流出。</li>
+</ul>
+<p>---</p>
+<h2>🧪 驗證計畫 (Verification Plan)</h2>
+<p>1. <strong>單元測試</strong>：</p>
+<ul>
+<li>撰寫 `tests/test_async_delivery_pacing.py`，測試 `deliver_text_async` 異步步調推播。</li>
+<li>確保全套 `pytest` 36/36 100% 綠燈通過。</li>
+</ul>
+<p>2. <strong>實體連線測試</strong>：</p>
+<ul>
+<li>發送 Portugal_Paris-2026 行程查詢，驗證 3,893 字行程解答在 20~30 秒內分段連續完美跳出。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 16:25</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 16:51</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,46 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">完成非阻塞異步發送與 90s 超時防禦最佳化 (36/36 passed)</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 16:51</span>
+                            <span class="timestamp-utc">2026-08-13 08:51 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">實作 deliver_text_async 全非阻塞推播與 90 秒超時保護，徹底解決 3800+ 字長篇行程解答發送卡死</p>
+                    <ul class="details-list"><li>升級 app/services/line_delivery_adapter.py: deliver_text_async 採用 asyncio.to_thread 與 asyncio.sleep(0.5)</li><li>升級 app/main.py: 任務超時安全擴充至 90 秒，完美支援超長行程推論與連續推播</li><li>全套 36/36 單元與整合測試 100% 綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_165114.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">完成非阻塞異步發送與 90s 超時防禦最佳化</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 16:50</span>
+                            <span class="timestamp-utc">2026-08-13 08:50 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">導入 deliver_text_async 全非阻塞推播與 90 秒超時保護，徹底解決長篇解答 Event Loop 阻塞卡死</p>
+                    <ul class="details-list"><li>升級 app/services/line_delivery_adapter.py: deliver_text_async 採用 asyncio.to_thread 與 asyncio.sleep(0.5)</li><li>升級 app/main.py: 任務超時安全擴充至 90 秒，完美支援 3800+ 字行程生成發送</li><li>全套 36/36 單元測試 100% 綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_165009.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="fix">
                 <div class="timeline-dot"></div>
