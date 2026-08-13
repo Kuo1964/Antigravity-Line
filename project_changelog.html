@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 16:51</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 17:13</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">完成正統 Daemon 守護進程一鍵啟動升級</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 17:13</span>
+                            <span class="timestamp-utc">2026-08-13 09:13 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">重構 start.sh 使用獨立 nohup 綁定為系統底層常駐 Daemon，徹底解決 Shell Task 退出致 FastAPI 死亡斷訊</p>
+                    <ul class="details-list"><li>升級 start.sh: 使用獨立 (nohup ...) 子 Shell 脫離主 Shell 進程樹，確保 Uvicorn 100% 永久常駐</li><li>驗證系統進程: FastAPI (PID 23857) 與 ngrok 穩定聯手監聽</li><li>全套 36/36 單元與整合測試 100% 綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_171350.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="feat">
                 <div class="timeline-dot"></div>

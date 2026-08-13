@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>連續發送 3 次無回應之根因探查與 Daemon 守護進程修復計畫 (Implementation Plan)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>連續發送 3 次無回應之根因探查與 Daemon 守護進程修復計畫 (Implementation Plan)</h1>
+<h2>🔍 探查根因 (Root Cause Analysis)</h2>
+<p>透過 `ps aux` 進程快照與 `execution_trace.log` 對照，100% 徹底揭露連問 3 次均無回應的真正死穴：</p>
+<p>1. <strong>FastAPI (Uvicorn) 伺服器進程在背景默默死亡</strong>：</p>
+<ul>
+<li>經 `ps aux | grep uvicorn` 檢查，本機 `uvicorn app.main:app` (Port 8000) 伺服器<strong>完全處於終止停止狀態 (Process Not Found)</strong>！</li>
+<li>原因為 `start.sh` 在 Shell 腳本完成後，背景子進程未綁定 `nohup` / `disown` 正統守護進程，致使 Task 結束時遭 OS 自動回收終止。</li>
+</ul>
+<p>2. <strong>ngrok 轉發失敗 (Connection Refused)</strong>：</p>
+<ul>
+<li>當您在 16:58、16:59、17:09 於手機 LINE App 發送訊息時，ngrok 收到 HTTP POST 欲轉轉送給 `127.0.0.1:8000`，但因本機 Uvicorn 已死亡，導致連線連拒 (502 Connection Refused)，系統連一字封包都沒接到。</li>
+</ul>
+<p>---</p>
+<h2>🛠️ 擬定修復方案 (Proposed Changes)</h2>
+<h3>1. 正統 Daemon 守護進程啟動 ([start.sh](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/start.sh))</h3>
+<ul>
+<li>將 Uvicorn 與 ngrok 的背景啟動全面改為 `nohup ... > log 2>&1 &` 脫離 Shell 進程樹，確保即便開辦終端工具關閉或背景 Task 結束，服務仍 <strong>100% 永遠常駐背景</strong>。</li>
+</ul>
+<h3>2. 伺服器狀態自我診斷與重連機制 ([app/main.py](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/main.py))</h3>
+<ul>
+<li>加入 Healthcheck PID 常駐保護，確保接收機制萬無一失。</li>
+</ul>
+<p>---</p>
+<h2>🧪 驗證計畫 (Verification Plan)</h2>
+<p>1. <strong> Daemon 常駐驗證</strong>：</p>
+<ul>
+<li>執行更新後的 `start.sh`，以 `ps aux` 驗證 Uvicorn PID 穩定綁定在系統底層。</li>
+</ul>
+<p>2. <strong>實體 3 次連發驗證</strong>：</p>
+<ul>
+<li>重啟後請您在 LINE 上再次查詢行程，驗證 3,800+ 字行程在 20~30 秒內流暢跳出！</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>
