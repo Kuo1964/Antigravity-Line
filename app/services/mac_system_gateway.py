@@ -18,7 +18,11 @@ class MacSystemGateway:
         self._ui_adapter = macos_ui_adapter
         self._crawler = image_crawler
 
-    def ensure_unlocked_and_ready(self) -> bool:
+    def get_current_screen_state(self) -> str:
+        """取得當前螢幕狀態"""
+        return "LOCKED" if self._unlocker.is_screen_locked() else "UNLOCKED"
+
+    def ensure_unlocked_and_ready(self, password: str = "") -> bool:
         """
         深層公開主介面：確保 Mac 處於解鎖並已準備好的狀態。
         自動處理解鎖鍵盤輸入、狀態記錄與錯誤備援。
@@ -28,7 +32,7 @@ class MacSystemGateway:
             self._ui_adapter.save_screen_state()
             
             # 2. 執行螢幕檢查與自動解鎖
-            success = self._unlocker.ensure_unlocked()
+            success = self._unlocker.ensure_unlocked(password)
             if success:
                 logger.info("macOS 螢幕處於開啟用戶端狀態，系統準備完畢")
                 return True
@@ -39,10 +43,13 @@ class MacSystemGateway:
             logger.error(f"MacSystemGateway 執行解鎖準備過程發生異常: {e}")
             return False
 
-    def restore_display_state(self) -> bool:
+    def restore_display_state(self, initial_state: str) -> bool:
         """深層公開主介面：復原之前的螢幕與電源狀態"""
         try:
-            return self._ui_adapter.restore_screen_state()
+            self._ui_adapter.restore_screen_state()
+            if initial_state == "LOCKED":
+                return self._unlocker.lock_screen()
+            return True
         except Exception as e:
             logger.error(f"復原 macOS 螢幕狀態失敗: {e}")
             return False

@@ -3,7 +3,7 @@ import time
 import logging
 from typing import Dict, Any
 
-from app.services.mac_unlocker import unlock_mac, detect_mac_screen_state, restore_mac_screen_state
+from app.services.mac_system_gateway import mac_system_gateway
 from app.services.image_crawler import fetch_latest_good_morning_image, copy_image_to_clipboard
 from app.services.line_desktop_controller import search_and_send_image
 
@@ -19,7 +19,7 @@ def run_good_morning_workflow(target_name: str = "Private", mac_password: str = 
     logger.info(f"=== 開始發送早安圖工作流程 (目標: {target_name}) ===")
     
     # 0. 檢測並記錄發送前 Mac 的原始螢幕狀態
-    initial_state = detect_mac_screen_state()
+    initial_state = mac_system_gateway.get_current_screen_state()
     
     result = {
         "success": False,
@@ -29,10 +29,10 @@ def run_good_morning_workflow(target_name: str = "Private", mac_password: str = 
     }
 
     try:
-        # 1. 解鎖 macOS 螢幕
-        logger.info("步驟 1/4: 解鎖與喚醒 macOS 螢幕...")
-        unlock_mac(mac_password)
-        time.sleep(1.5)
+        # 1. 透過 Gateway 解鎖 macOS 螢幕
+        logger.info("步驟 1/4: 透過 Gateway 解鎖與喚醒 macOS 螢幕...")
+        if not mac_system_gateway.ensure_unlocked_and_ready(mac_password):
+            logger.warning("解鎖可能不完全，繼續嘗試發送...")
 
         # 2. 下載當日最新早安圖片
         logger.info("步驟 2/4: 上網抓取當日最新祝賀早安圖...")
@@ -63,9 +63,9 @@ def run_good_morning_workflow(target_name: str = "Private", mac_password: str = 
             logger.error(result["message"])
 
     finally:
-        # 5. 無論成功或異常，均自動將 macOS 螢幕恢復至執行前的原始狀態！
-        logger.info("步驟 5/5: 正在將 macOS 螢幕恢復至發送前狀態...")
-        restore_mac_screen_state(initial_state)
+        # 5. 交由 Gateway 復原狀態
+        logger.info("步驟 5/5: 正在透過 Gateway 將 macOS 螢幕恢復至發送前狀態...")
+        mac_system_gateway.restore_display_state(initial_state)
 
     return result
 

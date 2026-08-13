@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity-Line 系統全景 Context Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-6xl mx-auto space-y-8">
+        <header class="glass p-6 rounded-2xl shadow-xl border-l-4 border-indigo-500">
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
+                🗺️ Antigravity-Line 全景 Context Map
+            </h1>
+            <p class="text-slate-400 mt-2">包含「LINE Webhook 即時推播」與「早安訊息自動喚醒排程」雙核心領域</p>
+        </header>
+
+        <section class="glass p-6 rounded-2xl">
+            <h2 class="text-xl font-semibold mb-4 text-cyan-300">📊 系統架構與資料流視覺化圖表</h2>
+            <div class="mermaid bg-slate-900/50 p-4 rounded-xl">
+            graph TD
+                subgraph 領域 1: LINE Webhook 即時對話
+                    Client[LINE App] -->|POST /webhook| Main[app/main.py]
+                    Main -->|白名單檢驗| Settings[app/config/settings.py SHARED]
+                    Main -->|內建指令| DeliveryAdapter[app/services/line_delivery_adapter.py SHARED]
+                    Main -->|BackgroundTasks| AgentEngine[app/services/agent_session_engine.py SHARED]
+                    AgentEngine -->|推論完成| DeliveryAdapter
+                end
+
+                subgraph 領域 2: 早安訊息自動排程
+                    Admin[開發者/系統] -->|sudo| SetupScript[scripts/setup_daily_schedule.sh]
+                    SetupScript --> DeployPy[scripts/deploy_schedule.py]
+                    DeployPy --> SchedulerAdapter[app/services/scheduler_adapter.py SHARED]
+                    SchedulerAdapter -->|寫入| Crontab[(macOS User/Root Crontab)]
+                    Crontab -->|定時觸發| MorningCard[scripts/send_daily_morning_card.py]
+                    MorningCard --> MacGateway[app/services/mac_system_gateway.py]
+                    MacGateway -->|螢幕喚醒/圖片快取| DeliveryAdapter
+                end
+
+                DeliveryAdapter -->|LINE API / GUI 降級| Client
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-500 text-sm">
+            最後更新時間: 2026-08-13 | 驗證版本: Branch main | Antigravity 2.0 Codebase Reconnaissance
+        </footer>
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
+</body>
+</html>
