@@ -48,8 +48,6 @@ def test_three_stage_async_push():
         return True
 
     async def mock_run_agent_task(uid, prompt):
-        # 模擬 Agent 耗時任務，給予充分協程切換時間
-        await asyncio.sleep(0.05)
         return "這是 Agent 最終執行成果"
 
     with patch.object(settings, "ALLOWED_USER_IDS", ["U_ALLOWED_TEST_USER"]), \
@@ -74,8 +72,13 @@ def test_three_stage_async_push():
         assert pushed_messages[0][0] == user_id
         assert "🚀 已成功接收任務，目標專案 [Antigravity-Line]" in pushed_messages[0][1]
 
-        # 稍候讓背景任務執行成果回傳
-        time.sleep(0.1)
+        # 驅動同線程 asyncio 讓背景 Task 完成推播
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.run_until_complete(asyncio.sleep(0.1))
+        except Exception:
+            asyncio.run(asyncio.sleep(0.1))
 
         texts = [msg[1] for msg in pushed_messages]
         # 成果推播驗證
