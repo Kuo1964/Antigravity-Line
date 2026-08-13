@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 15:37</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 16:10</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">完成 Paced Safe-Chunk Streaming 步調化連續推播修復</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 16:10</span>
+                            <span class="timestamp-utc">2026-08-13 08:10 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">實作 1800 字語意段落切割與 0.5s 獨立步調推播，隔離內部 User ID 無效 GUI 降級</p>
+                    <ul class="details-list"><li>升級 app/services/line_delivery_adapter.py: 支援 split_text_chunks 1800字語意切割</li><li>加入 deliver_text 0.5秒步調化連續推送 (Pacing)</li><li>隔離內部 User ID 發送降級，全套 36/36 單元測試綠燈</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_161048.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="fix">
                 <div class="timeline-dot"></div>

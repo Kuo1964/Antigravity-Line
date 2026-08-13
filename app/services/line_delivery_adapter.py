@@ -1,6 +1,9 @@
+import os
+import re
+import time
 import logging
 from typing import List, Optional
-from linebot.v3 import WebhookHandler
+
 from linebot.v3.messaging import (
     Configuration,
     ApiClient,
@@ -8,171 +11,181 @@ from linebot.v3.messaging import (
     PushMessageRequest,
     TextMessage
 )
+from linebot.v3.webhook import WebhookHandler
+
 from app.config import settings
+from app.services.line_desktop_controller import search_and_send_image
 
 logger = logging.getLogger("line_delivery_adapter")
 
+def format_markdown_for_line(text: str) -> str:
+    """
+    格式化 Markdown 文字以適配 LINE 閱讀體驗：
+    1. 將一至四級 Markdown 標題轉為 Emoji 醒目標頭 (📌 🔹 🔸 ▪️)
+    2. 將 Markdown 代碼區塊 (```code```) 轉為美觀卡片縮排格式，且不誤傷程式碼內部 # 註解
+    """
+    if not text:
+        return ""
+
+    parts = re.split(r"(```[\s\S]*?```)", text)
+    formatted_parts = []
+
+    for part in parts:
+        if part.startswith("```") and part.endswith("```"):
+            code_block = part[3:-3]
+            if code_block.startswith("\n"):
+                code_block = code_block[1:]
+            
+            lines = code_block.split("\n")
+            first_line = lines[0].strip() if lines else ""
+            
+            lang = ""
+            code_lines = lines
+            # 語言標籤僅允許 ASCII 英文字母/數字
+            if first_line and re.match(r"^[a-zA-Z0-9_\+\#-]+$", first_line) and all(ord(c) < 128 for c in first_line):
+                lang = first_line
+                code_lines = lines[1:]
+
+            header = f"┌─ 💻 Code ({lang}) ─" if lang else "┌─ 💻 Code ─"
+            code_body = "\n".join([f"│ {l}" for l in code_lines])
+            card = f"{header}\n{code_body}\n└──────────────────"
+            formatted_parts.append(card)
+        else:
+            lines = part.split("\n")
+            formatted_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("# "):
+                    formatted_lines.append(f"📌 {stripped[2:]}")
+                elif stripped.startswith("## "):
+                    formatted_lines.append(f"🔹 {stripped[3:]}")
+                elif stripped.startswith("### "):
+                    formatted_lines.append(f"🔸 {stripped[4:]}")
+                elif stripped.startswith("#### "):
+                    formatted_lines.append(f"▪️ {stripped[5:]}")
+                else:
+                    formatted_lines.append(line)
+            formatted_parts.append("\n".join(formatted_lines))
+
+    return "".join(formatted_parts).strip()
+
 class LineDeliveryAdapter:
     """
-    高槓桿、深介面 LineDeliveryAdapter 模組。
-    統一 LINE Messaging API 與 macOS 桌面 GUI 自動發送入口，
-    自動處理 2000 字元長訊息分段切割與 API 失敗時的桌面 GUI 自動化降級。
+    LINE 專屬訊息與多媒體傳輸適配器 (Paced Safe-Chunk Streaming 步調化連續推播)。
+    封裝 Messaging API SDK 呼叫、智慧 Markdown 格式化、段落安全分段與桌面 GUI 降級備援。
     """
 
     def __init__(self):
-        self._handler: Optional[WebhookHandler] = None
-        self._messaging_api: Optional[MessagingApi] = None
-        self._init_sdk()
+        self.channel_access_token = settings.LINE_CHANNEL_ACCESS_TOKEN
+        self.channel_secret = settings.LINE_CHANNEL_SECRET
+        self._messaging_api = None
+        self._handler = None
 
-    def _init_sdk(self):
-        """初始化 Line SDK 實例」"""
-        if settings.LINE_CHANNEL_SECRET:
-            self._handler = WebhookHandler(settings.LINE_CHANNEL_SECRET)
-        if settings.LINE_CHANNEL_ACCESS_TOKEN:
-            config = Configuration(access_token=settings.LINE_CHANNEL_ACCESS_TOKEN)
+        if self.channel_access_token:
+            config = Configuration(access_token=self.channel_access_token)
             api_client = ApiClient(config)
             self._messaging_api = MessagingApi(api_client)
+
+        if self.channel_secret:
+            self._handler = WebhookHandler(self.channel_secret)
+
+    @property
+    def messaging_api(self) -> Optional[MessagingApi]:
+        return self._messaging_api
 
     @property
     def handler(self) -> Optional[WebhookHandler]:
         return self._handler
 
-    def split_text_chunks(self, text: str, max_length: int = 2000) -> List[str]:
-        """內部私有方法：自動按 LINE 字元上限精確切割長訊息"""
+    def format_markdown_for_line(self, text: str) -> str:
+        """導出內部 Markdown 格式化方法」"""
+        return format_markdown_for_line(text)
+
+    def split_text_chunks(self, text: str, max_length: int = 1800, max_chars: Optional[int] = None) -> List[str]:
+        """
+        語意段落安全拆分器 (Semantic Safe-Chunking):
+        1. 優先依據雙換行 (\\n\\n) 或段落標籤進行切分。
+        2. 若單一段落過長，再依據單換行 (\\n) 切分。
+        3. 確保每個 chunk 不超過極限字數 (預設 1800 字)，相容 max_length 與 max_chars。
+        """
+        limit = max_chars if max_chars is not None else max_length
         if not text:
             return []
-        if len(text) <= max_length:
+        if len(text) <= limit:
             return [text]
-        
+
         chunks = []
-        curr = ""
-        lines = text.split("\n")
-        for line in lines:
-            if len(curr) + len(line) + 1 <= max_length:
-                curr += (line + "\n")
+        paragraphs = text.split("\n\n")
+        current_chunk = ""
+
+        for p in paragraphs:
+            p_str = p.strip()
+            if not p_str:
+                continue
+
+            if len(p_str) > limit:
+                lines = p_str.split("\n")
+                for line in lines:
+                    if len(current_chunk) + len(line) + 1 > limit:
+                        if current_chunk:
+                            chunks.append(current_chunk.strip())
+                        current_chunk = line + "\n"
+                    else:
+                        current_chunk += line + "\n"
             else:
-                if curr:
-                    chunks.append(curr.strip())
-                # 若單行即超過 max_length
-                if len(line) > max_length:
-                    for i in range(0, len(line), max_length):
-                        chunks.append(line[i:i+max_length])
-                    curr = ""
+                if len(current_chunk) + len(p_str) + 2 > limit:
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                    current_chunk = p_str + "\n\n"
                 else:
-                    curr = line + "\n"
-        if curr.strip():
-            chunks.append(curr.strip())
+                    current_chunk += p_str + "\n\n"
+
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+
         return chunks
-
-    def format_markdown_for_line(self, text: str) -> str:
-        """
-        將 Markdown 格式轉譯為適合 LINE 顯示的樣式。
-        - 將 `# 標題` 轉為 Emoji 醒目標頭 (如 `📌 標題`)。
-        - 將代碼區塊 (```code```) 轉為易讀之縮排卡片格式。
-        """
-        if not text:
-            return ""
-
-        import re
-        code_blocks: List[str] = []
-
-        def save_and_format_code_block(match: re.Match) -> str:
-            lang = match.group(1).strip()
-            code = match.group(2)
-            lines = code.splitlines()
-            header = f"┌─ 💻 Code ({lang}) ─" if lang else "┌─ 💻 Code ─"
-            card_lines = [header]
-            for line in lines:
-                card_lines.append(f"│ {line}")
-            card_lines.append("└──────────────────")
-            formatted = "\n".join(card_lines)
-            placeholder = f"__CODE_BLOCK_{len(code_blocks)}__"
-            code_blocks.append(formatted)
-            return placeholder
-
-        # 1. 抽離並格式化代碼區塊，避免代碼內部的 # 被誤判為標題
-        pattern = re.compile(r'```(\w*)\n?(.*?)```', re.DOTALL)
-        text_with_placeholders = pattern.sub(save_and_format_code_block, text)
-
-        # 2. 轉換標題為 Emoji 醒目標頭
-        lines = text_with_placeholders.splitlines()
-        formatted_lines: List[str] = []
-        for line in lines:
-            stripped = line.lstrip()
-            if stripped.startswith("#### "):
-                formatted_lines.append("▪️ " + stripped[5:])
-            elif stripped.startswith("### "):
-                formatted_lines.append("🔸 " + stripped[4:])
-            elif stripped.startswith("## "):
-                formatted_lines.append("🔹 " + stripped[3:])
-            elif stripped.startswith("# "):
-                formatted_lines.append("📌 " + stripped[2:])
-            else:
-                formatted_lines.append(line)
-
-        result = "\n".join(formatted_lines)
-
-        # 3. 還原並整合代碼區塊卡片
-        for i, block in enumerate(code_blocks):
-            result = result.replace(f"__CODE_BLOCK_{i}__", block)
-
-        return result
 
     def deliver_text(self, to_user_id: str, text: str) -> bool:
         """
-        深層公開主介面：發送文字訊息。
-        對外隱藏 Markdown 格式轉譯適配、2000 字元分段推播與 GUI 桌面發送降級細節。
+        透過 Messaging API 發送文字訊息，支援段落安全分段與 0.5s 步調化獨立連續推播 (Paced Push)。
         """
-        formatted_text = self.format_markdown_for_line(text)
-        chunks = self.split_text_chunks(formatted_text)
-        if not chunks:
+        if not text:
             return False
+
+        formatted_text = self.format_markdown_for_line(text)
+        chunks = self.split_text_chunks(formatted_text, max_length=1800)
 
         # 優先嘗試 Messaging API 推播
         if self._messaging_api:
             try:
-                for chunk in chunks:
+                for idx, chunk in enumerate(chunks):
                     push_request = PushMessageRequest(
                         to=to_user_id,
                         messages=[TextMessage(text=chunk)]
                     )
                     self._messaging_api.push_message(push_request)
-                logger.info(f"成功透過 Messaging API 發送 {len(chunks)} 段訊息至 {to_user_id}")
+                    logger.info(f"成功透過 Messaging API 發送第 {idx + 1}/{len(chunks)} 段訊息至 {to_user_id}")
+                    
+                    # 多段連續發送時加入 0.5 秒安全步調間隔 (Pacing Interval)
+                    if len(chunks) > 1 and idx < len(chunks) - 1:
+                        time.sleep(0.5)
+
                 return True
             except Exception as api_err:
-                logger.warning(f"Messaging API 推播失敗 ({api_err})，嘗試啟動桌面 GUI 降級發送...")
+                logger.warning(f"Messaging API 推播發送失敗 ({api_err})")
 
-        # 降級嘗試：macOS 桌面 GUI 自動化發送
-        try:
-            from app.services.line_desktop_controller import line_desktop_controller
-            return line_desktop_controller.send_message(to_user_id, formatted_text)
-        except Exception as gui_err:
-            logger.error(f"桌面 GUI 降級發送亦失敗: {gui_err}")
-            logger.info(f"[模擬發送 Push Message 至 {to_user_id}]: {formatted_text}")
+        # 降級處理：若是內部 User ID (以 'U' 開頭長度 > 20)，不跳入無效的桌面 GUI 好友搜尋，直接紀錄警告
+        if to_user_id and to_user_id.startswith("U") and len(to_user_id) > 20:
+            logger.error(f"Messaging API 失敗且標的為內部 ID ({to_user_id})，跳過無效桌面 GUI 搜尋")
             return False
 
+        # 其他好友顯示名稱之發送降級 (桌面 GUI)
+        logger.info(f"嘗試啟動桌面 GUI 向好友 '{to_user_id}' 發送訊息...")
+        return search_and_send_image(target_name=to_user_id, image_path="")
+
     def deliver_image(self, to_user_id: str, image_path: str, caption: str = "") -> bool:
-        """
-        深層公開主介面：發送圖片訊息。
-        內部自動處理解析度相容性與桌面 GUI 圖文發送適配。
-        """
-        # 優先使用桌面 GUI 圖文控制器進行多媒體發送
-        try:
-            from app.services.line_desktop_controller import line_desktop_controller
-            success = line_desktop_controller.send_image(to_user_id, image_path, caption)
-            if success:
-                logger.info(f"成功發送圖片至使用者: {to_user_id}")
-                return True
-        except Exception as e:
-            logger.warning(f"桌面 GUI 發送圖片失敗: {e}")
+        """發送多媒體圖片訊息，整合桌面 GUI 自動化圖文發送能力 (早安圖片專用介面)"""
+        logger.info(f"調用 LineDeliveryAdapter 發送圖片至 {to_user_id} (圖片: {image_path})")
+        return search_and_send_image(target_name=to_user_id, image_path=image_path)
 
-        # 若發送失敗，使用文字適配備援
-        return self.deliver_text(to_user_id, f"{caption}\n[圖片檔案: {image_path}]")
-
-# 全域單例
 line_delivery_adapter = LineDeliveryAdapter()
-
-def format_markdown_for_line(text: str) -> str:
-    """模組級輔助函式：調用 line_delivery_adapter.format_markdown_for_line"""
-    return line_delivery_adapter.format_markdown_for_line(text)
-

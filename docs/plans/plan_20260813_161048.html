@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>實作計畫：段落感知的步調化連續分推機制 (Paced Safe-Chunk Streaming Plan)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>實作計畫：段落感知的步調化連續分推機制 (Paced Safe-Chunk Streaming Plan)</h1>
+<h2>📌 背景與問題說明 (Background & Problem Statement)</h2>
+<p>當使用 LINE Bot 查詢大型專案（如 `Portugal_Paris-2026` 17天詳細行程）時，Gemini 生成的成果解答高達數千字。目前系統在發送長推播時存在以下瓶頸：</p>
+<p>1. <strong>硬性切割破壞語法</strong>：原先依硬性字數切割，容易撕裂 Markdown 卡片與標題，導致 LINE API 拋出 HTTP 400 Invalid Request 錯誤。</p>
+<p>2. <strong>密集發送引發 API 限流</strong>：在單次請求包含太多 chunks 或連續無間隔發送時，容易觸發 LINE API 頻率限制 (Throttling)，進而誤入會卡死好友搜尋的「桌面 GUI 降級」流程。</p>
+<p>---</p>
+<h2>🛠️ 擬定變更內容 (Proposed Changes)</h2>
+<p>本計畫將在不動到任何發送早安圖片與排程邏輯前提下，升級 `LineDeliveryAdapter` 推播傳輸機制：</p>
+<h3>1. [app/services/line_delivery_adapter.py](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/services/line_delivery_adapter.py)</h3>
+<p>#### 升級 `split_text_chunks` 為智慧語意段落切割：</p>
+<ul>
+<li><strong>安全邊界</strong>：優先依據雙換行 (`\n\n`)、段落標頭 (📌) 或 Markdown 區塊進行切割，確保單個 Chunk 不超過 1,800 字元（預留 200 字的安全 Padding）。</li>
+<li><strong>完整性維護</strong>：保證每段訊息都是語意完整、格式美觀的 LINE 專屬卡片，不撕裂標題與代碼區塊。</li>
+</ul>
+<p>#### 升級 `deliver_text` 為步調化獨立連續推播 (Paced Sequential Push)：</p>
+<ul>
+<li><strong>獨立請求推送</strong>：不再將數千字打包在單一巨型 Payload，而是分割為多個獨立的 `PushMessageRequest`。</li>
+<li><strong>0.5 秒步調控制</strong>：連續發送不同段落時，加入 `time.sleep(0.5)`（或異步 `asyncio.sleep(0.5)`），確保 LINE 伺服器輕鬆接單，讓使用者手機順暢跳出第一區塊、第二區塊等連續卡片。</li>
+<li><strong>無效 GUI 降級保護</strong>：對於遠端 API 推播失敗的情況，記錄精確 Error 日誌並進行文字降級重試，絕不調用會卡死的好友搜尋 GUI。</li>
+</ul>
+<p>---</p>
+<h2>🧪 驗證計畫 (Verification Plan)</h2>
+<h3>1. 自動化單元測試 (`tests/test_line_delivery_adapter.py`)</h3>
+<ul>
+<li>測試超長 Markdown 文本（>5,000 字）傳入時，`split_text_chunks` 能否精確按段落邊界切割成 <= 1800 字的完整區塊。</li>
+<li>測試 `deliver_text` 的多段發送與 0.5s 間隔邏輯。</li>
+<li>執行全套 `pytest` 確保 100% 綠燈全過。</li>
+</ul>
+<h3>2. 實用案例驗證</h3>
+<ul>
+<li>使用 LINE Bot 發送：`幫我在"Portugal_Paris-2026"專案中查看看到目前為止最新最完整的行程規劃`</li>
+<li>驗證手機在數秒內連續收到排版精美的多段行程卡片推播，且完全不卡死。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>
