@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import sys
 import time
 from typing import Optional
 
@@ -15,10 +16,12 @@ class MacUnlocker:
     def is_screen_locked(self) -> bool:
         """檢查螢幕是否被鎖定"""
         try:
-            cmd = "python3 -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
+            # 使用 sys.executable 確保吃到 venv 內的 Quartz 套件
+            cmd = f"{sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             return "CGSSessionScreenIsLocked = 1" in res.stdout
-        except Exception:
+        except Exception as e:
+            logger.error(f"is_screen_locked 發生錯誤: {e}")
             return False
 
     def unlock_screen(self, password: Optional[str] = None) -> bool:

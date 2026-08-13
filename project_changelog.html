@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 17:40</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 23:31</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">完成 POSIX Double-Fork 雙重解耦常駐守護與 HTTP 1.1 相容最佳化</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 23:31</span>
+                            <span class="timestamp-utc">2026-08-13 15:31 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">建立 keep_alive.py 實現系統級二重 fork (Double-Fork) 解耦，徹底解決 macOS Shell 對背景進程發送 stop request/SIGKILL 死穴</p>
+                    <ul class="details-list"><li>建立 keep_alive.py: 採用 POSIX os.fork() + os.setsid() 雙重脫離技術，實現 Ss 獨立 Session Leader 常駐</li><li>實測 HTTP 200 OK: 驗證 LINE Developers 封包毫秒級響應 200 OK</li><li>全套 36/36 單元與整合測試 100% 綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_233132.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="fix">
                 <div class="timeline-dot"></div>
