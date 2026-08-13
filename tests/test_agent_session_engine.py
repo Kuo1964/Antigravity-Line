@@ -135,3 +135,45 @@ def test_agent_session_engine_turn_processing():
 
     agent_session_engine.reset_session(user_id)
 
+def test_high_risk_intent_and_confirmation_flow():
+    """測試 TICKET-004: 高風險指令意圖判斷、凍結佇列與 YES/confirm 解凍續行機制」"""
+    user_id = "U_HIGH_RISK_TEST_USER"
+    agent_session_engine.reset_session(user_id)
+    settings.GEMINI_API_KEY = "test_mock_key"
+
+    high_risk_prompt = "請幫我刪除 app/temp.py 檔案並修改原始碼"
+    
+    # 步驟 1: 發送高風險指令 -> 觸發意圖分類攔截，凍結任務
+    freeze_reply = asyncio.run(agent_session_engine.process_user_turn(user_id, high_risk_prompt))
+    assert freeze_reply == "⚠️ 此指令包含檔案變更/寫入需求，請回覆『YES』以授權 Antigravity 繼續執行。"
+    assert agent_session_engine.pending_confirmations.get(user_id) == high_risk_prompt
+
+    # 步驟 2: 發送 YES / /confirm -> 解凍被掛起的任務並由 Gemini SDK 續行處理
+    with patch("google.genai.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "已完成高風險操作：成功刪除與修改檔案"
+        mock_client.models.generate_content.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        confirm_reply = asyncio.run(agent_session_engine.process_user_turn(user_id, "YES"))
+        assert confirm_reply == "已完成高風險操作：成功刪除與修改檔案"
+        # 驗證 pending 佇列已被清空
+        assert user_id not in agent_session_engine.pending_confirmations
+        # 驗證對話歷史紀錄的是解凍後的原高風險任務 prompt
+        session = agent_session_engine.get_or_create_session(user_id)
+        assert len(session["history"]) == 1
+        assert session["history"][0]["user"] == high_risk_prompt
+        assert session["history"][0]["agent"] == "已完成高風險操作：成功刪除與修改檔案"
+
+    # 步驟 3: 在沒有待確認任務時發送 /confirm
+    no_pending_reply = asyncio.run(agent_session_engine.process_user_turn(user_id, "/confirm"))
+    assert no_pending_reply == "目前沒有待確認的高風險任務。"
+
+    # 步驟 4: 測試 reset_session 對 pending_confirmations 的清理
+    asyncio.run(agent_session_engine.process_user_turn(user_id, "請覆蓋寫入 config.py"))
+    assert user_id in agent_session_engine.pending_confirmations
+    agent_session_engine.reset_session(user_id)
+    assert user_id not in agent_session_engine.pending_confirmations
+
+

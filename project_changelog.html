@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:14</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:16</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">平行完成 TICKET-004 (高風險二次確認) 與 TICKET-005 (三段式異步心跳與互斥鎖)</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 12:16</span>
+                            <span class="timestamp-utc">2026-08-13 04:16 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">實現 Gemini 輕量意圖二元分類與 YES 解凍授權，以及接單秒回、每 15 秒進度心跳推播與 Task Lock</p>
+                    <ul class="details-list"><li>實現 TICKET-004: 高風險指令意圖分類、pending_confirmations 佇列與 YES/confirm 解凍續行 (6/6 測試通過)</li><li>實現 TICKET-005: 秒回 200 OK, 15 秒進度心跳推播與 asyncio.Lock 任務鎖 (6/6 測試通過)</li><li>全套 37 個 pytest 測試 100% 綠燈通過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_121611.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260813_121611.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="feat">
                 <div class="timeline-dot"></div>

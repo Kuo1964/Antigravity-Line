@@ -1,10 +1,13 @@
+import asyncio
 import logging
+from typing import Dict
 from fastapi import FastAPI, Request, HTTPException, Header, BackgroundTasks
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.agent_manager import agent_manager
 from app.project_manager import project_manager
 from app.line_handler import send_line_push_message
+from app.services.line_delivery_adapter import line_delivery_adapter
 
 # 設定 Logging 格式
 logging.basicConfig(
@@ -19,20 +22,53 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# 為每位 LINE user_id 維護任務互斥鎖 (Task Mutex Lock)
+user_locks: Dict[str, asyncio.Lock] = {}
+
+def get_user_lock(user_id: str) -> asyncio.Lock:
+    """取得或為特定使用者初始化 asyncio.Lock"""
+    if user_id not in user_locks:
+        user_locks[user_id] = asyncio.Lock()
+    return user_locks[user_id]
+
 @app.get("/health")
 async def health_check():
     """健康檢查端點"""
     return {"status": "ok", "service": "Antigravity Line Bot Bridge"}
 
 async def process_background_agent_task(user_id: str, user_text: str):
-    """背景處理 Antigravity Agent 推論並發送 Line Push Message"""
+    """背景處理 Antigravity Agent 推論並發送 Line Push Message (包含三段式狀態推播與心跳)"""
+    lock = get_user_lock(user_id)
     logger.info(f"開始背景執行 Agent 任務 (User: {user_id}, Prompt: '{user_text}')")
     
-    # 執行 Agent 任務
-    result_text = await agent_manager.run_agent_task(user_id, user_text)
-    
-    # 將推論與執行成果推播給使用者
-    send_line_push_message(user_id, result_text)
+    # 啟動第二段進度心跳任務 (每 15 秒發送心跳訊息)
+    async def heartbeat_loop():
+        while True:
+            await asyncio.sleep(15)
+            line_delivery_adapter.deliver_text(user_id, "⏳ Agent 仍在執行中，請稍候...")
+
+    heartbeat_task = asyncio.create_task(heartbeat_loop())
+
+    try:
+        # 執行 Agent 任務
+        result_text = await agent_manager.run_agent_task(user_id, user_text)
+        
+        # 第三段：將最終成果推播給使用者
+        line_delivery_adapter.deliver_text(user_id, result_text)
+    except Exception as e:
+        logger.error(f"背景 Agent 任務執行發生異常: {e}")
+        line_delivery_adapter.deliver_text(user_id, f"❌ Agent 執行發生錯誤: {e}")
+    finally:
+        # 取消心跳任務
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
+
+        # 釋放使用者的 Mutex Lock
+        if lock.locked():
+            lock.release()
 
 @app.post("/webhook")
 async def webhook(
@@ -127,12 +163,40 @@ async def webhook(
             send_line_push_message(user_id, help_msg)
             continue
 
-        # 3. 若 Agent 正在處理該使用者的上一筆任務，給予提示
-        if agent_manager.is_busy(user_id):
-            send_line_push_message(user_id, "⚠️ 當前尚有執行中的任務，請稍候任務完成後再下達新指令。")
+        # 3. 任務互斥鎖檢查：若上一任務未結束前又發送新指令，推播提示訊息
+        lock = get_user_lock(user_id)
+        if lock.locked() or agent_manager.is_busy(user_id):
+            line_delivery_adapter.deliver_text(user_id, "⚠️ 當前已有執行中的任務，請稍候完成後再下達新指令。")
             continue
 
-        # 4. 一般任務：安排 FastAPI 背景任務異步處理，並立即回應 200 OK
-        background_tasks.add_task(process_background_agent_task, user_id, user_text)
+        # 獲取 Mutex 鎖以保護背景任務執行
+        await lock.acquire()
+
+        try:
+            # 確定目標專案名稱
+            user_proj = agent_manager.get_user_project(user_id)
+            detected_proj = project_manager.detect_project_from_prompt(user_text)
+            session = agent_manager.get_or_create_session(user_id)
+            curr_proj = session.get("current_project")
+
+            if user_proj and user_proj.get("name"):
+                proj_name = user_proj["name"]
+            elif detected_proj and detected_proj.get("name"):
+                proj_name = detected_proj["name"]
+            elif curr_proj and curr_proj.get("name"):
+                proj_name = curr_proj["name"]
+            else:
+                proj_name = "全工作區"
+
+            # 第一段推播（秒回 200 OK 告知任務已接收）
+            first_stage_msg = f"🚀 已成功接收任務，目標專案 [{proj_name}]，正在背景啟動 Agent 執行..."
+            line_delivery_adapter.deliver_text(user_id, first_stage_msg)
+
+            # 4. 一般任務：安排 FastAPI 背景任務異步處理，並立即回應 200 OK
+            background_tasks.add_task(process_background_agent_task, user_id, user_text)
+        except Exception:
+            if lock.locked():
+                lock.release()
+            raise
 
     return JSONResponse(content={"status": "ok"}, status_code=200)

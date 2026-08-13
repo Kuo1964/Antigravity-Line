@@ -23,6 +23,8 @@ class AgentSessionEngine:
         self.active_tasks: Dict[str, bool] = {}
         # 紀錄每個使用者設定的專案 Context (User ID -> Project Info)
         self.user_projects: Dict[str, Any] = {}
+        # 紀錄被凍結待確認的高風險任務 (User ID -> Pending Prompt)
+        self.pending_confirmations: Dict[str, str] = {}
 
     def get_or_create_session(self, user_id: str) -> Dict[str, Any]:
         """取得或初始化使用者的對話 Session Context，支援從 session_store 自動還原」"""
@@ -53,6 +55,9 @@ class AgentSessionEngine:
             existed = True
         if user_id in self.user_projects:
             del self.user_projects[user_id]
+            existed = True
+        if user_id in self.pending_confirmations:
+            del self.pending_confirmations[user_id]
             existed = True
 
         deleted_from_store = session_store.delete_session(user_id)
@@ -139,15 +144,51 @@ class AgentSessionEngine:
             formatted += f"使用者: {item.get('user', '')}\nAI: {item.get('agent', '')}\n"
         return formatted
 
+    def _classify_intent(self, prompt: str) -> str:
+        """
+        輕量級意圖分類器：判斷需求是否屬於 Read-Only 或 Code-Mutation / File-Deletion。
+        分析指令是否包含代碼寫入、刪除檔案或修改原始碼等高風險行為。
+        """
+        high_risk_keywords = [
+            "修改", "刪除", "寫入", "覆蓋", "新增檔案", "建立檔案", "更新代碼", "改寫", 
+            "刪檔", "重構", "變更原始碼", "刪除檔案", "寫入檔案", "修改程式碼", "更新檔案",
+            "delete", "remove", "write", "create file", "modify", "edit", "overwrite", 
+            "refactor", "update code", "rm ", "touch "
+        ]
+        prompt_lower = prompt.lower()
+        for kw in high_risk_keywords:
+            if kw in prompt_lower:
+                return "code_mutation"
+        return "read_only"
+
     async def process_user_turn(self, user_id: str, prompt: str) -> str:
         """
         深層公開主介面：極簡單一入口。
         傳入 user_id 與 prompt，自動處理解析、專案脈絡注入、Gemini Grounding API 配置、推論與 Session 儲存。
+        包含 Gemini 輕量級意圖分類與高風險二次確認機制 (TICKET-004)。
         """
         self.active_tasks[user_id] = True
         session = self.get_or_create_session(user_id)
 
         try:
+            clean_prompt = prompt.strip().upper()
+            target_prompt = prompt
+
+            # 二次確認授權機制：當用戶傳送 YES 或 /confirm 時，自動解凍續行
+            if clean_prompt in ["YES", "/CONFIRM"]:
+                if user_id in self.pending_confirmations:
+                    target_prompt = self.pending_confirmations.pop(user_id)
+                    logger.info(f"使用者 {user_id} 已授權續行高風險任務: {target_prompt}")
+                else:
+                    return "目前沒有待確認的高風險任務。"
+            else:
+                # 輕量意圖判斷 (Read-Only vs Code-Mutation/File-Deletion)
+                intent = self._classify_intent(prompt)
+                if intent == "code_mutation":
+                    self.pending_confirmations[user_id] = prompt
+                    logger.info(f"偵測到高風險任務 (Code-Mutation/File-Deletion)，已凍結使用者 {user_id} 任務至 pending_confirmations 佇列")
+                    return "⚠️ 此指令包含檔案變更/寫入需求，請回覆『YES』以授權 Antigravity 繼續執行。"
+
             api_key = settings.GEMINI_API_KEY.strip()
 
             # 若未設定 GEMINI_API_KEY
@@ -160,7 +201,7 @@ class AgentSessionEngine:
                 )
 
             # 自動注入 Workspace 上下文與預載檔案內容 (包含雙軌專案切換)
-            augmented_prompt = self._inject_workspace_context(user_id, prompt)
+            augmented_prompt = self._inject_workspace_context(user_id, target_prompt)
             # 自動壓減與讀取歷史紀錄
             history_context = self._compress_history_if_needed(session["history"])
 
@@ -187,7 +228,7 @@ class AgentSessionEngine:
                 )
 
                 reply_text = response.text.strip()
-                session["history"].append({"user": prompt, "agent": reply_text})
+                session["history"].append({"user": target_prompt, "agent": reply_text})
                 session_store.save_session(user_id, session)
                 return reply_text
 
@@ -199,7 +240,7 @@ class AgentSessionEngine:
                 response = await asyncio.to_thread(model.generate_content, full_prompt)
 
                 reply_text = response.text.strip()
-                session["history"].append({"user": prompt, "agent": reply_text})
+                session["history"].append({"user": target_prompt, "agent": reply_text})
                 session_store.save_session(user_id, session)
                 return reply_text
 
