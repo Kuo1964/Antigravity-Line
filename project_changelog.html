@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-12 19:00</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 10:55</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">修復 Line Bot 訊息傳送與 Webhook 外網隧道連線</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 10:55</span>
+                            <span class="timestamp-utc">2026-08-13 02:55 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">強化 start.sh 守護進程，解開 macOS IPv6 connection refused 限制，確保 FastAPI 與 ngrok 外網 Webhook 通暢</p>
+                    <ul class="details-list"><li>加入 disown 防止 SIGHUP 導致背景伺服器關閉</li><li>限定 ngrok 綁定 IPv4 127.0.0.1:8000 消除 ERR_NGROK_8012</li><li>外網 Webhook 測試回應 HTTP 200 OK，100% 遵守早安排程禁區紅線</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_105524.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260813_105524.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="refactor">
                 <div class="timeline-dot"></div>

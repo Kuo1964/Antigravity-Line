@@ -6,21 +6,25 @@ cd "$PROJECT_DIR" || exit 1
 
 echo "🚀 [1/3] 正在載入 Python 虛擬環境..."
 if [ -d "venv" ]; then
-    source venv/bin/activate
+    PYTHON_BIN="./venv/bin/python"
 elif [ -d ".venv" ]; then
-    source .venv/bin/activate
+    PYTHON_BIN="./.venv/bin/python"
+else
+    PYTHON_BIN="python3"
 fi
 
 echo "🟢 [2/3] 正在背景啟動 FastAPI (Uvicorn) 伺服器 (Port 8000)..."
-nohup python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
+nohup $PYTHON_BIN -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
 UVICORN_PID=$!
+disown $UVICORN_PID 2>/dev/null
 echo "   └─ FastAPI 服務已啟動 (PID: $UVICORN_PID)"
 
 sleep 2
 
-echo "🌐 [3/3] 正在背景啟動 ngrok 外網穿透隧道 (Port 8000)..."
-nohup ngrok http 8000 > /dev/null 2>&1 &
+echo "🌐 [3/3] 正在背景啟動 ngrok 外網穿透隧道 (Port 8000 -> 127.0.0.1:8000)..."
+nohup ngrok http 127.0.0.1:8000 > /dev/null 2>&1 &
 NGROK_PID=$!
+disown $NGROK_PID 2>/dev/null
 echo "   └─ ngrok 服務已啟動 (PID: $NGROK_PID)"
 
 sleep 3

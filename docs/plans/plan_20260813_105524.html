@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAN Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h2>Guardrail Spec: 修復 Line Bot 訊息傳送連線</h2>
+<h3>Task</h3>
+<p>診斷並修復無法透過 LINE Bot 傳送訊息至 Antigravity 的問題。透過健全化服務一鍵啟動腳本 (start.sh) 與驗證 Webhook 入口 (app/main.py)，確保 FastApi 與 ngrok 外網隧道穩定在背景運行，達到 LINE App 訊息秒回與背景異步推播。</p>
+<h3>Read First</h3>
+<ul>
+<li>`app/main.py` (FastAPI Webhook 入口與指令處理解耦)</li>
+<li>`start.sh` (背景服務與 ngrok 一鍵管理腳本)</li>
+<li>`app/services/line_delivery_adapter.py` (訊息推播與長訊息拆分適配器)</li>
+<li>`docs/CONTEXT_MAP.md` (專案脈絡地圖)</li>
+</ul>
+<h3>Follow These Patterns</h3>
+<ul>
+<li><strong>FastAPI 異步解耦</strong>：非指令回應必須使用 `BackgroundTasks` 在背景派發推論任務，主 thread 必須立即回應 HTTP 200 OK。</li>
+<li><strong>白名單安全檢查</strong>：使用 `settings.is_user_allowed(user_id)` 進行第一線權限防禦。</li>
+</ul>
+<h3>Reuse, Do Not Rebuild</h3>
+<ul>
+<li><strong>連線啟動</strong>：複用並擴充 `start.sh` 進行進程喚起與 Port 8000 保護。</li>
+<li><strong>訊息適配器</strong>：使用 `line_delivery_adapter.deliver_text()` 與 `deliver_image()`，嚴禁在入口處重新發明 LINE Push API 呼叫。</li>
+</ul>
+<h3>Absolutely Do Not Touch</h3>
+<ul>
+<li><strong>早安圖片與自動喚醒排程程式 (系統紅線)</strong>：</li>
+<li>🛑 `scripts/send_daily_morning_card.py`</li>
+<li>🛑 `app/services/scheduler_adapter.py`</li>
+<li>🛑 `app/config/schedule_tasks.json`</li>
+<li>🛑 `scripts/setup_daily_schedule.sh`</li>
+<li>🛑 `scripts/schedule_next_wake.sh`</li>
+<li><strong>全域權限與金鑰名稱</strong>：`.env` 檔案內既有之欄位名稱（如 `LINE_CHANNEL_SECRET`, `ALLOWED_USER_IDS`）。</li>
+<li><strong>對話引擎壓減演算法</strong>：`app/services/agent_session_engine.py` 內部之對話歷史 Context 壓縮邏輯。</li>
+</ul>
+<h3>Slices</h3>
+<ul>
+<li><strong>Slice 1 (Plan & Reconnaissance)</strong>：</li>
+<li>檢視全系統運行狀態、連線埠與 `.env` 配置。提出完整的服務啟動與連線修復計畫，<strong>不安裝或修改任何代碼</strong>。</li>
+<li><strong>Slice 2 (Service Startup & Tunnel Setup)</strong>：</li>
+<li>確保 `start.sh` 正確啟動 FastAPI 與 ngrok 背景進程，並取得動態 ngrok URL。</li>
+<li><strong>Slice 3 (Webhook Communication Verification)</strong>：</li>
+<li>驗證 `app/main.py` `/webhook` 端點回應性與 LINE 訊息派發。</li>
+<li><strong>Slice 4 (Full Verification & Test Suite Pass)</strong>：</li>
+<li>執行 `./venv/bin/python -m pytest tests/`，確保全套 22 個測試全數綠燈通過。</li>
+</ul>
+<h3>Acceptance Criteria</h3>
+<p>1. <strong>服務正常連線</strong>：`http://127.0.0.1:8000/health` 回傳 `status: ok`。</p>
+<p>2. <strong>ngrok 隧道在線</strong>：`http://127.0.0.1:4040/api/tunnels` 成功取得公開 HTTPS URL。</p>
+<p>3. <strong>Webhook 異步秒回</strong>：模擬向 `/webhook` 發送 POST 測試請求，服務需在 1 秒內回傳 HTTP 200 OK。</p>
+<p>4. <strong>測試套件 100% 通過</strong>：執行全套 `pytest` 保持 22/22 全通過。</p>
+<h3>What NOT To Do</h3>
+<ul>
+<li>❌ <strong>絕對不可更動早安排程模組</strong>：嚴禁改動任何早安卡片發送與 macOS crontab 喚醒排程代碼。</li>
+<li>❌ <strong>絕對不可重構無關模組</strong>：嚴禁為了修復連線而重構 `project_manager.py` 或 Agent 邏輯。</li>
+<li>❌ <strong>絕對不可引入未定義的第三方程式庫</strong>。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>
