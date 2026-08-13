@@ -130,3 +130,19 @@ def delete_session(user_id: str, filepath: Optional[str] = None) -> bool:
             return True
         return False
 
+
+class SessionStoreFacade:
+    """SessionStore 的 Facade 包裝類別，保持全域物件介面相容性」"""
+    def load_all_sessions(self, filepath: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+        return load_all_sessions(filepath)
+
+    def load_session(self, user_id: str, filepath: Optional[str] = None) -> Dict[str, Any]:
+        return load_session(user_id, filepath)
+
+    def save_session(self, user_id: str, data: Dict[str, Any], filepath: Optional[str] = None) -> None:
+        return save_session(user_id, data, filepath)
+
+    def delete_session(self, user_id: str, filepath: Optional[str] = None) -> bool:
+        return delete_session(user_id, filepath)
+
+session_store = SessionStoreFacade()

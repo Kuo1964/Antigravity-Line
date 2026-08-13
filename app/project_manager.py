@@ -74,12 +74,14 @@ class ProjectManager:
         prompt_lower = prompt.lower()
         projects = self.list_projects()
 
+        # 1. 完全或符號去化精準比對
         for proj in projects:
             p_name = proj["name"].lower()
             if p_name in prompt_lower or p_name.replace("-", "") in prompt_lower or p_name.replace("_", "") in prompt_lower:
                 logger.info(f"從對話中精準匹配到目標專案: {proj['name']} (路徑: {proj['path']})")
                 return proj
 
+        # 2. Token 關鍵字比對
         for proj in projects:
             tokens = [t for t in proj["name"].lower().replace("-", " ").replace("_", " ").split() if len(t) > 3]
             for token in tokens:
@@ -90,7 +92,7 @@ class ProjectManager:
         return None
 
     def get_project_file_context(self, project_info: Dict[str, Any], prompt: str) -> str:
-        """根據給定的專案資訊與 Prompt，自動掃描與預載專案中的檔案內容"""
+        """根據給定的專案資訊與 Prompt，深度掃描與預載專案中的檔案與文件內容」"""
         if not project_info or not isinstance(project_info, dict):
             return ""
 
@@ -105,27 +107,41 @@ class ProjectManager:
         if not proj_path or not os.path.exists(proj_path) or not os.path.isdir(proj_path):
             return "\n".join(context_lines)
 
-        try:
-            files_in_dir = os.listdir(proj_path)
-            for f in files_in_dir:
-                if f in prompt:
-                    f_path = os.path.join(proj_path, f)
-                    if os.path.isfile(f_path):
-                        with open(f_path, "r", encoding="utf-8", errors="ignore") as fh:
-                            content = fh.read(2000)
-                            context_lines.append(f"\n[專案檔案 '{f}' 的實際內容]\n{content}")
-                            return "\n".join(context_lines)
+        ignore_dirs = {".git", ".idea", ".vscode", "node_modules", "venv", "__pycache__"}
 
-            if "行程" in prompt or "規劃" in prompt or not any("[專案檔案" in line for line in context_lines):
-                for f in files_in_dir:
-                    if f.endswith(".md"):
-                        f_path = os.path.join(proj_path, f)
-                        if os.path.isfile(f_path):
-                            with open(f_path, "r", encoding="utf-8", errors="ignore") as fh:
-                                content = fh.read(2000)
-                                context_lines.append(f"\n[專案檔案 '{f}' 的實際內容]\n{content}")
+        try:
+            # 遍歷專案目錄 (支援多層子目錄掃描，最高 3 層深度)
+            markdown_files = []
+            for root, dirs, files in os.walk(proj_path):
+                dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
+                depth = root[len(proj_path):].count(os.sep)
+                if depth > 3:
+                    continue
+
+                for f in files:
+                    if f.startswith("."):
+                        continue
+                    full_f_path = os.path.join(root, f)
+                    rel_f_path = os.path.relpath(full_f_path, proj_path)
+
+                    # 若檔名直接出現在 prompt 中
+                    if f in prompt or rel_f_path in prompt:
+                        with open(full_f_path, "r", encoding="utf-8", errors="ignore") as fh:
+                            content = fh.read(4000)
+                            context_lines.append(f"\n[專案檔案 '{rel_f_path}' 的實際內容]\n{content}")
+
+                    if f.endswith(".md") or f.endswith(".json") or f.endswith(".txt"):
+                        markdown_files.append((rel_f_path, full_f_path))
+
+            # 如果未透過檔名精確比對成功，且提及行程/規劃/狀態，自動預載 key 文檔 (最多預載 3 個文檔)
+            if not any("[專案檔案" in line for line in context_lines) and markdown_files:
+                for rel_path, full_path in markdown_files[:3]:
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as fh:
+                        content = fh.read(3000)
+                        context_lines.append(f"\n[專案檔案 '{rel_path}' 的實際內容]\n{content}")
+
         except Exception as e:
-            logger.warning(f"掃描與預載專案檔案內容失敗: {e}")
+            logger.warning(f"深度掃描與預載專案檔案內容失敗: {e}")
 
         return "\n".join(context_lines)
 

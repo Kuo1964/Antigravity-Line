@@ -1,41 +1,38 @@
 import os
-from typing import List
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional, List, Any
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    """應用程式設定類別，由環境變數或 .env 檔案自動載入"""
     LINE_CHANNEL_SECRET: str = ""
     LINE_CHANNEL_ACCESS_TOKEN: str = ""
-    ALLOWED_USER_IDS: str = ""  # 逗號分隔的 Line User ID 字串
+    ALLOWED_USER_IDS: Any = ""
     GEMINI_API_KEY: str = ""
-    ENABLE_WEB_SEARCH: bool = True  # 是否開啟 Google Search Grounding 即時連網搜尋功能
-    WORKSPACE_ROOT: str = ""  # 工作區總目錄路徑（若留空則自動使用當前專案父目錄）
+    ENABLE_WEB_SEARCH: bool = True
+    MAC_PASSWORD: str = ""
+    WORKSPACE_ROOT: str = ""
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
+
     @property
     def effective_workspace_root(self) -> str:
-        """取得有效的工作區總目錄絕對路徑"""
-        if self.WORKSPACE_ROOT.strip():
-            return os.path.abspath(self.WORKSPACE_ROOT.strip())
-        # 預設向上搜尋至包含所有專案的主資料夾層級 (如 我的雲端硬碟)
-        current_project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        parent_dir = os.path.dirname(current_project_dir)
-        grandparent_dir = os.path.dirname(parent_dir)
-        return grandparent_dir
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+        """取得有效的工作區根目錄，若未設定則自動讀取目前環境」"""
+        if self.WORKSPACE_ROOT and os.path.exists(self.WORKSPACE_ROOT):
+            return self.WORKSPACE_ROOT
+        return os.getcwd()
 
     @property
     def allowed_user_id_list(self) -> List[str]:
-        """解析逗號分隔的 Line User ID 列表"""
+        """解析逗號分隔的 Line User ID 列表，相容 list 或 str」"""
         if not self.ALLOWED_USER_IDS:
             return []
-        return [uid.strip() for uid in self.ALLOWED_USER_IDS.split(",") if uid.strip()]
+        if isinstance(self.ALLOWED_USER_IDS, list):
+            return [str(uid).strip() for uid in self.ALLOWED_USER_IDS if str(uid).strip()]
+        return [str(uid).strip() for uid in str(self.ALLOWED_USER_IDS).split(",") if str(uid).strip()]
 
     def is_user_allowed(self, user_id: str) -> bool:
         """檢查給定的 Line User ID 是否在白名單中"""

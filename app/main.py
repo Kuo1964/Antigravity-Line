@@ -1,39 +1,41 @@
+import os
 import asyncio
 import logging
 from typing import Dict
-from fastapi import FastAPI, Request, HTTPException, Header, BackgroundTasks
+from fastapi import FastAPI, Request, Header, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
+
 from app.config import settings
-from app.agent_manager import agent_manager
 from app.project_manager import project_manager
-from app.line_handler import send_line_push_message
+from app.agent_manager import agent_manager
 from app.services.line_delivery_adapter import line_delivery_adapter
 
-# 設定 Logging 格式
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+# 設定 Logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("main")
 
 app = FastAPI(
     title="Antigravity Line Bot Bridge",
-    description="透過 Line Bot 雙向控制 Antigravity Agent 的 Webhook 服務",
+    description="連接 Line Messaging API 與本地 Antigravity 2.0 Agent 的雙向控制橋樑",
     version="1.0.0"
 )
 
-# 為每位 LINE user_id 維護任務互斥鎖 (Task Mutex Lock)
+# 為每個 Line 使用者維護任務 Task Mutex 鎖 (User ID -> asyncio.Lock)
 user_locks: Dict[str, asyncio.Lock] = {}
 
 def get_user_lock(user_id: str) -> asyncio.Lock:
-    """取得或為特定使用者初始化 asyncio.Lock"""
+    """取得或建立使用者的 asyncio.Lock」"""
     if user_id not in user_locks:
         user_locks[user_id] = asyncio.Lock()
     return user_locks[user_id]
 
+def send_line_push_message(to_user_id: str, text: str) -> bool:
+    """公開導出介面：調用 LineDeliveryAdapter 發送 Push Message」"""
+    return line_delivery_adapter.deliver_text(to_user_id, text)
+
 @app.get("/health")
 async def health_check():
-    """健康檢查端點"""
+    """系統健康檢查端點"""
     return {"status": "ok", "service": "Antigravity Line Bot Bridge"}
 
 async def process_background_agent_task(user_id: str, user_text: str):
@@ -43,14 +45,17 @@ async def process_background_agent_task(user_id: str, user_text: str):
     
     # 啟動第二段進度心跳任務 (每 15 秒發送心跳訊息)
     async def heartbeat_loop():
-        while True:
-            await asyncio.sleep(15)
-            line_delivery_adapter.deliver_text(user_id, "⏳ Agent 仍在執行中，請稍候...")
+        try:
+            while True:
+                await asyncio.sleep(15)
+                line_delivery_adapter.deliver_text(user_id, "⏳ Agent 仍在執行中，請稍候...")
+        except asyncio.CancelledError:
+            pass
 
     heartbeat_task = asyncio.create_task(heartbeat_loop())
 
     try:
-        # 執行 Agent 任務
+        # 執行 Agent 任務 (內含非阻塞 asyncio.to_thread LLM 呼叫與專案內容注入)
         result_text = await agent_manager.run_agent_task(user_id, user_text)
         
         # 第三段：將最終成果推播給使用者
@@ -98,7 +103,6 @@ async def webhook(
         # 1. 存取權限驗證：檢查 Line User ID 是否在白名單內
         if not settings.is_user_allowed(user_id):
             logger.warning(f"拒絕未授權的使用者存取: {user_id}")
-            # 為保護伺服器不主動推播干擾，僅記錄 log
             continue
 
         # 2. 處理內建控制指令
@@ -192,8 +196,8 @@ async def webhook(
             first_stage_msg = f"🚀 已成功接收任務，目標專案 [{proj_name}]，正在背景啟動 Agent 執行..."
             line_delivery_adapter.deliver_text(user_id, first_stage_msg)
 
-            # 4. 一般任務：安排 FastAPI 背景任務異步處理，並立即回應 200 OK
-            background_tasks.add_task(process_background_agent_task, user_id, user_text)
+            # 4. 一般任務：使用 asyncio.create_task 確保背景協程安全排程並解耦
+            asyncio.create_task(process_background_agent_task(user_id, user_text))
         except Exception:
             if lock.locked():
                 lock.release()
