@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:02</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:06</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">平行完成 TICKET-001 (SessionStore) 與 TICKET-003 (LINE Markdown 適配)</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 12:06</span>
+                            <span class="timestamp-utc">2026-08-13 04:06 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">經由雙 Subagent 平行實作完成 SessionStore 持久化與 LINE 專用 Markdown 格式轉換器</p>
+                    <ul class="details-list"><li>實現 SessionStore (寫入 app/data/sessions.json, .gitignore 隱私保護, 6/6 測試通過)</li><li>實現 LINE Markdown 格式轉譯器 (#->📌, 代碼區塊縮排卡片化, 2000 字拆分, 5/5 測試通過)</li><li>全套 31 個 pytest 測試 100% 綠燈通過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_120613.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260813_120613.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="docs">
                 <div class="timeline-dot"></div>

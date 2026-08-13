@@ -18,6 +18,7 @@ temp_test*/
 *.jpeg
 *.png
 history_sent_images.json
+app/data/*.json
 
 # IDE 與系統暫存檔
 .DS_Store

@@ -64,12 +64,67 @@ class LineDeliveryAdapter:
             chunks.append(curr.strip())
         return chunks
 
+    def format_markdown_for_line(self, text: str) -> str:
+        """
+        將 Markdown 格式轉譯為適合 LINE 顯示的樣式。
+        - 將 `# 標題` 轉為 Emoji 醒目標頭 (如 `📌 標題`)。
+        - 將代碼區塊 (```code```) 轉為易讀之縮排卡片格式。
+        """
+        if not text:
+            return ""
+
+        import re
+        code_blocks: List[str] = []
+
+        def save_and_format_code_block(match: re.Match) -> str:
+            lang = match.group(1).strip()
+            code = match.group(2)
+            lines = code.splitlines()
+            header = f"┌─ 💻 Code ({lang}) ─" if lang else "┌─ 💻 Code ─"
+            card_lines = [header]
+            for line in lines:
+                card_lines.append(f"│ {line}")
+            card_lines.append("└──────────────────")
+            formatted = "\n".join(card_lines)
+            placeholder = f"__CODE_BLOCK_{len(code_blocks)}__"
+            code_blocks.append(formatted)
+            return placeholder
+
+        # 1. 抽離並格式化代碼區塊，避免代碼內部的 # 被誤判為標題
+        pattern = re.compile(r'```(\w*)\n?(.*?)```', re.DOTALL)
+        text_with_placeholders = pattern.sub(save_and_format_code_block, text)
+
+        # 2. 轉換標題為 Emoji 醒目標頭
+        lines = text_with_placeholders.splitlines()
+        formatted_lines: List[str] = []
+        for line in lines:
+            stripped = line.lstrip()
+            if stripped.startswith("#### "):
+                formatted_lines.append("▪️ " + stripped[5:])
+            elif stripped.startswith("### "):
+                formatted_lines.append("🔸 " + stripped[4:])
+            elif stripped.startswith("## "):
+                formatted_lines.append("🔹 " + stripped[3:])
+            elif stripped.startswith("# "):
+                formatted_lines.append("📌 " + stripped[2:])
+            else:
+                formatted_lines.append(line)
+
+        result = "\n".join(formatted_lines)
+
+        # 3. 還原並整合代碼區塊卡片
+        for i, block in enumerate(code_blocks):
+            result = result.replace(f"__CODE_BLOCK_{i}__", block)
+
+        return result
+
     def deliver_text(self, to_user_id: str, text: str) -> bool:
         """
         深層公開主介面：發送文字訊息。
-        對外隱藏 2000 字元分段推播與 GUI 桌面發送降級細節。
+        對外隱藏 Markdown 格式轉譯適配、2000 字元分段推播與 GUI 桌面發送降級細節。
         """
-        chunks = self.split_text_chunks(text)
+        formatted_text = self.format_markdown_for_line(text)
+        chunks = self.split_text_chunks(formatted_text)
         if not chunks:
             return False
 
@@ -90,10 +145,10 @@ class LineDeliveryAdapter:
         # 降級嘗試：macOS 桌面 GUI 自動化發送
         try:
             from app.services.line_desktop_controller import line_desktop_controller
-            return line_desktop_controller.send_message(to_user_id, text)
+            return line_desktop_controller.send_message(to_user_id, formatted_text)
         except Exception as gui_err:
             logger.error(f"桌面 GUI 降級發送亦失敗: {gui_err}")
-            logger.info(f"[模擬發送 Push Message 至 {to_user_id}]: {text}")
+            logger.info(f"[模擬發送 Push Message 至 {to_user_id}]: {formatted_text}")
             return False
 
     def deliver_image(self, to_user_id: str, image_path: str, caption: str = "") -> bool:
@@ -116,3 +171,8 @@ class LineDeliveryAdapter:
 
 # 全域單例
 line_delivery_adapter = LineDeliveryAdapter()
+
+def format_markdown_for_line(text: str) -> str:
+    """模組級輔助函式：調用 line_delivery_adapter.format_markdown_for_line"""
+    return line_delivery_adapter.format_markdown_for_line(text)
+
