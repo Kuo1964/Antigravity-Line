@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spec: LINE Bot ↔ Antigravity 2.0 雙向協同系統規格書 (SPEC.md)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>Spec: LINE Bot ↔ Antigravity 2.0 雙向協同系統規格書 (SPEC.md)</h1>
+<p>本文件綜合 `/grill-with-docs` 訪談結果與 `docs/CONTEXT.md` 之 6 大架構決策 (ADR-001 ~ ADR-006)，定稿 LINE Bot 聊天機器人與 Antigravity 2.0 雙向協同系統之軟體需求與測試規格說明。</p>
+<ul>
+<li><strong>版本</strong>: 1.0.0</li>
+<li><strong>最後更新時間</strong>: 2026-08-13</li>
+<li><strong>狀態</strong>: `ready-for-agent`</li>
+</ul>
+<p>---</p>
+<h2>1. Problem Statement (問題陳述)</h2>
+<p>目前開發者在使用 Antigravity 2.0 Agent 控制多專案開發與查看進度時，必須固定坐在 Mac 電腦前操作 Terminal。當開發者離座、行動中或使用手機時，無法隨時下達專案指令、查詢 Agent 執行狀態，亦無法在遠端即時接收 Antigravity 執行的成果反饋與錯誤告警。</p>
+<p>---</p>
+<h2>2. Solution (解決方案)</h2>
+<p>建置 <strong>LINE Bot ↔ Antigravity 2.0 雙向協同運作系統</strong>。開發者可透過手邊的 LINE 行動 App：</p>
+<p>1. 傳送對話或專案控制指令至手邊運行的 Antigravity。</p>
+<p>2. 切換或鎖定目標專案工作區（支援狀態鎖定與 Prompt 語意自動辨識雙軌制）。</p>
+<p>3. 即時收到 Antigravity 執行的進度心跳 (Progress Heartbeat) 與成果推播。</p>
+<p>4. 在涉及高風險寫入/代碼變更指令時，收到自動推播的 confirmation 訊息，回覆 `YES` 後授權執行，兼具便利性與安全防禦。</p>
+<p>---</p>
+<h2>3. User Stories (使用者故事清單)</h2>
+<p>1. <strong>As a</strong> 開發者, <strong>I want to</strong> 在 LINE 上發送指令給指定專案, <strong>so that</strong> 我能在離座時讓 Antigravity 遠端執行建置、測試與分析。</p>
+<p>2. <strong>As a</strong> 開發者, <strong>I want to</strong> 使用 `/use <專案名>` 手動鎖定目標專案, <strong>so that</strong> 後續所有對話指令均預設對該專案發效。</p>
+<p>3. <strong>As a</strong> 開發者, <strong>I want to</strong> 在 Prompt 中直接提及專案名稱（如「在 Portugal_Paris-2026 查行程」）, <strong>so that</strong> 系統能智慧切換並自動注入該專案的工作區檔案脈絡。</p>
+<p>4. <strong>As a</strong> 開發者, <strong>I want to</strong> 在發送指令後於 1 秒內收到「接單成功」回應, <strong>so that</strong> 我確定請求已進入伺服器佇列且 LINE 連線不會逾時。</p>
+<p>5. <strong>As a</strong> 開發者, <strong>I want to</strong> 在耗時較長的 Agent 任務執行中每隔 15 秒收到狀態心跳提示, <strong>so that</strong> 我清楚掌握任務目前推進的階段。</p>
+<p>6. <strong>As a</strong> 開發者, <strong>I want to</strong> 收到排版良好的成果推播（包含轉換後的 Emoji 標題與縮排代碼卡片）, <strong>so that</strong> 我在手機畫面上能輕鬆閱讀複雜的推論與 Log 成果。</p>
+<p>7. <strong>As a</strong> 開發者, <strong>I want</strong> 超過 2000 字元的長成果自動被分段推播, <strong>so that</strong> 訊息不會因為 LINE 官方字數限制而被截斷丟失。</p>
+<p>8. <strong>As a</strong> 開發者, <strong>I want to</strong> 在下達包含代碼修改或檔案刪除之高風險指令時收到確認訊息, <strong>so that</strong> 系統不會在未經授權下誤刪或修改原始碼。</p>
+<p>9. <strong>As a</strong> 開發者, <strong>I want to</strong> 回覆 `YES` 後解凍並執行待確認的高風險任務, <strong>so that</strong> 我能掌握關鍵邊界的控制權。</p>
+<p>10. <strong>As a</strong> 開發者, <strong>I want</strong> 系統為我的 LINE User ID 建立獨立任務鎖, <strong>so that</strong> 在上一任務執行完成前不會因為重複發送指令而引發競態幹擾。</p>
+<p>11. <strong>As a</strong> 開發者, <strong>I want</strong> 系統將 Session 與鎖定專案寫入本地 `app/data/sessions.json`, <strong>so that</strong> FastAPI 服務重啟後對話與狀態不會遺失。</p>
+<p>---</p>
+<h2>4. Implementation Decisions (實作決策)</h2>
+<ul>
+<li><strong>控制與發送介面層 (Web & Dispatch Layer)</strong>:</li>
+<li>擴充 `app/main.py` Webhook 路由，維持秒回 HTTP 200 OK 搭配 `BackgroundTasks` 的異步調用模式。</li>
+<li>將專案切換、指令解析與訊息發送統一收攏於 `LineDeliveryAdapter` (`deliver_text`, `deliver_image`)。</li>
+<li><strong>對話與任務引擎層 (Agent & Session Engine Layer)</strong>:</li>
+<li>在 `AgentSessionEngine` 內部擴充 <strong>三段式進度心跳推播機制 (Progress Heartbeat)</strong>，定期透過發送通道回報進度。</li>
+<li>導入 <strong>Gemini 輕量意圖分類器 (High-Risk Intent Classifier)</strong>，於任務執行前解析需求是否屬於 Code-Mutation / File-Deletion；若屬於高風險類別，將任務寫入待確認佇列並推播 confirmation 訊息。</li>
+<li><strong>持久化與隊列層 (Persistence & Queue Layer)</strong>:</li>
+<li>建立 `SessionStore` 管理器，每次 Session 對話歷史或專案鎖定更新時，異步唯讀寫入 `app/data/sessions.json`。</li>
+<li>為每位 `user_id` 維護 asyncio Task Lock，防止並行任務競態。</li>
+</ul>
+<p>---</p>
+<h2>5. Testing Decisions (測試與切縫決策)</h2>
+<ul>
+<li><strong>測試原則</strong>: 採行為導向與黑盒/灰盒切縫測試，不測試私有實作細節，僅針對外部介面與發送合約進行驗證。</li>
+<li><strong>主要測試切縫 (Testing Seams)</strong>:</li>
+<li>`tests/test_agent_session_engine.py`: 驗證雙軌專案切換、Session 重置與意圖分類鎖定。</li>
+<li>`tests/test_line_delivery_adapter.py`: 驗證 Markdown 格式化轉換與 2000 字元分段切分邏輯。</li>
+<li>`tests/test_webhook.py`: 驗證 Webhook 秒回 HTTP 200 OK、白名單驗證與指令分發。</li>
+<li><strong>既有測試參照 (Prior Art)</strong>:</li>
+<li>遵循現有 22 個 `pytest` 測試架構，維持 100% 綠燈通過。</li>
+</ul>
+<p>---</p>
+<h2>6. Out of Scope (非本次範圍)</h2>
+<ul>
+<li><strong>發送早安圖片與自動喚醒排程程式</strong> (`send_daily_morning_card.py`, `scheduler_adapter.py`, `schedule_tasks.json`)：已設為系統絕對紅線，不在此 Spec 修改範圍內。</li>
+<li><strong>多圖富文字 Flex Message 畫布編輯器</strong>：本次專注於標準圖文與分段推播卡片，不引入複雜 Flex Message JSON Schema。</li>
+</ul>
+<p>---</p>
+<h2>7. Further Notes (補充說明)</h2>
+<ul>
+<li>實作時需確保 `app/data/` 目錄若不存在時自動建立，並將 `app/data/*.json` 加入 `.gitignore` 防止洩漏隱私。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>
