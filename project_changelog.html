@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:06</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:14</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">完成 TICKET-002: AgentSessionEngine 雙軌專案綁定與歷史 Context 持久化</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 12:14</span>
+                            <span class="timestamp-utc">2026-08-13 04:14 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">實現 /use 狀態鎖定與語意 Prompt 比對雙軌切換，並與 SessionStore 異步持久化同步</p>
+                    <ul class="details-list"><li>整合 SessionStore 自動載入與保存歷史對話與 current_project</li><li>實現語意思考與狀態鎖定雙軌專案 Context 注入</li><li>更新 test_agent_session_engine.py 全套 34 個測試 100% 綠燈通過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_121406.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260813_121406.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="feat">
                 <div class="timeline-dot"></div>

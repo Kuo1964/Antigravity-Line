@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracer-Bullet Tickets 清單: LINE Bot ↔ Antigravity 2.0 雙向協同 (TICKETS.md)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>Tracer-Bullet Tickets 清單: LINE Bot ↔ Antigravity 2.0 雙向協同 (TICKETS.md)</h1>
+<p>本檔案將 `docs/SPEC.md` 的 11 項 User Stories 與實作決策，拆解為 6 個具備清晰依賴關係 (Blocking Edges) 的小顆粒度任務 Ticket。每個 Ticket 均為獨立可驗證、可單獨由 `/implement` 執行與進行 Code Review 的微型模組。</p>
+<ul>
+<li><strong>日期</strong>: 2026-08-13</li>
+<li><strong>規格檔依據</strong>: <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/docs/SPEC.md">`docs/SPEC.md`</a></li>
+</ul>
+<p>---</p>
+<h2>📌 Ticket 概覽與依賴圖 (Dependency Map)</h2>
+<pre><code class="language-text">
+[Ticket 1: SessionStore 持久化] ──┐
+                                  ├──&gt; [Ticket 2: 雙軌專案綁定] ──┬──&gt; [Ticket 4: 高風險二次確認] ──┐
+[Ticket 3: LINE Markdown 適配] ──┼───────────────────────────────┴──&gt; [Ticket 5: 三段式異步心跳] ──┼──&gt; [Ticket 6: 整合驗收 &amp; 綠燈防禦]
+</code></pre>
+<p>---</p>
+<h2>🎫 Ticket 1: 建立 SessionStore 持久化管理器與資料結構</h2>
+<ul>
+<li><strong>ID</strong>: `TICKET-001`</li>
+<li><strong>阻擋需求 (Blockers)</strong>: 無 `[NO BLOCKERS]`</li>
+<li><strong>範疇 (Scope)</strong>:</li>
+<li>建立 `SessionStore` (`app/services/session_store.py`)，將使用者的 Session 與當前鎖定專案寫入/讀取 `app/data/sessions.json`。</li>
+<li>確保 `app/data/` 目錄存在，並在 `.gitignore` 加入 `app/data/*.json` 保護隱私。</li>
+<li><strong>測試切縫 (Testing Seam)</strong>: `tests/test_session_store.py` (測試寫入、讀取與重啟恢復)。</li>
+<li><strong>驗收標準</strong>: 單元測試 100% 通過，成功存取 `sessions.json`。</li>
+</ul>
+<p>---</p>
+<h2>🎫 Ticket 2: 擴充 AgentSessionEngine 支援雙軌專案綁定與歷史 Context</h2>
+<ul>
+<li><strong>ID</strong>: `TICKET-002`</li>
+<li><strong>阻擋需求 (Blockers)</strong>: `TICKET-001`</li>
+<li><strong>範疇 (Scope)</strong>:</li>
+<li>更新 `AgentSessionEngine` 整合 `SessionStore`。</li>
+<li>實現 `/use <專案名>` 狀態鎖定與 Prompt 專案名稱語意比對雙軌切換機制。</li>
+<li><strong>測試切縫 (Testing Seam)</strong>: `tests/test_agent_session_engine.py`。</li>
+<li><strong>驗收標準</strong>: `test_agent_session_engine.py` 綠燈通過，專案切換順暢。</li>
+</ul>
+<p>---</p>
+<h2>🎫 Ticket 3: 實現 LINE 專用 Markdown 格式化適配器與長字數分段</h2>
+<ul>
+<li><strong>ID</strong>: `TICKET-003`</li>
+<li><strong>阻擋需求 (Blockers)</strong>: 無 `[NO BLOCKERS]`</li>
+<li><strong>範疇 (Scope)</strong>:</li>
+<li>在 `LineDeliveryAdapter` 擴充 Markdown 格式轉譯器（`# 標題` -> `📌 標題`,代碼塊轉為卡片）。</li>
+<li>保證字數 >2000 時自動精確拆分為多段發送。</li>
+<li><strong>測試切縫 (Testing Seam)</strong>: `tests/test_line_delivery_adapter.py`。</li>
+<li><strong>驗收標準</strong>: `test_line_delivery_adapter.py` 綠燈通過，長字數拆分與格式化轉譯正常。</li>
+</ul>
+<p>---</p>
+<h2>🎫 Ticket 4: 實現 Gemini 輕量級意圖分類器與高風險二次確認機制</h2>
+<ul>
+<li><strong>ID</strong>: `TICKET-004`</li>
+<li><strong>阻擋需求 (Blockers)</strong>: `TICKET-002`</li>
+<li><strong>範疇 (Scope)</strong>:</li>
+<li>在 `AgentSessionEngine` 加入二元意圖判定 (Read-Only vs Code-Mutation/Delete)。</li>
+<li>判定為高風險時，暫存任務並向 LINE 發送 confirmation 訊息，待使用者回覆 `YES` 後解凍執行。</li>
+<li><strong>測試切縫 (Testing Seam)</strong>: `tests/test_agent_session_engine.py`。</li>
+<li><strong>驗收標準</strong>: 嘗試刪除/修改動作時正確觸發二次確認，回覆 `YES` 後繼續執行。</li>
+</ul>
+<p>---</p>
+<h2>🎫 Ticket 5: 實現三段式異步進度心跳推播與互斥鎖</h2>
+<ul>
+<li><strong>ID</strong>: `TICKET-005`</li>
+<li><strong>阻擋需求 (Blockers)</strong>: `TICKET-002`, `TICKET-003`</li>
+<li><strong>範疇 (Scope)</strong>:</li>
+<li>在 `app/main.py` 與 `process_background_agent_task` 實現秒回接單 (200 OK)、每 15 秒進度心跳推播。</li>
+<li>為每個 `user_id` 維護任務互斥鎖，避免重複執行競態。</li>
+<li><strong>測試切縫 (Testing Seam)</strong>: `tests/test_webhook.py`。</li>
+<li><strong>驗收標準</strong>: 1 秒內秒回 HTTP 200 OK，長任務每 15 秒產生進度推播。</li>
+</ul>
+<p>---</p>
+<h2>🎫 Ticket 6: 全套功能整合驗收與 22/22 測試綠燈防禦</h2>
+<ul>
+<li><strong>ID</strong>: `TICKET-006`</li>
+<li><strong>阻擋需求 (Blockers)</strong>: `TICKET-001`, `TICKET-002`, `TICKET-003`, `TICKET-004`, `TICKET-005`</li>
+<li><strong>範疇 (Scope)</strong>:</li>
+<li>執行全套 `pytest` 測試與端對端連線驗證。</li>
+<li>確保 100% 不損害早安排程與全套舊測試案例。</li>
+<li><strong>測試切縫 (Testing Seam)</strong>: 全套 `pytest tests/`。</li>
+<li><strong>驗收標準</strong>: `pytest` 保持 22/22 全數綠燈通過。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -28,7 +28,7 @@ def _ensure_dir_exists(filepath: str) -> None:
         os.makedirs(dirname, exist_ok=True)
 
 
-def load_all_sessions(filepath: str = DEFAULT_SESSION_PATH) -> Dict[str, Dict[str, Any]]:
+def load_all_sessions(filepath: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     """讀取所有使用者的 Session 資料。
 
     Args:
@@ -37,6 +37,8 @@ def load_all_sessions(filepath: str = DEFAULT_SESSION_PATH) -> Dict[str, Dict[st
     Returns:
         Dict[str, Dict[str, Any]]: 使用者 ID 對應 Session 資料的字典
     """
+    if filepath is None:
+        filepath = DEFAULT_SESSION_PATH
     with _file_lock:
         if not os.path.exists(filepath):
             return {}
@@ -50,7 +52,7 @@ def load_all_sessions(filepath: str = DEFAULT_SESSION_PATH) -> Dict[str, Dict[st
             return {}
 
 
-def load_session(user_id: str, filepath: str = DEFAULT_SESSION_PATH) -> Dict[str, Any]:
+def load_session(user_id: str, filepath: Optional[str] = None) -> Dict[str, Any]:
     """讀取特定使用者的 Session 資料。
 
     Args:
@@ -60,11 +62,13 @@ def load_session(user_id: str, filepath: str = DEFAULT_SESSION_PATH) -> Dict[str
     Returns:
         Dict[str, Any]: 使用者的 Session 資料字典，若無資料則回傳空字典 {}
     """
+    if filepath is None:
+        filepath = DEFAULT_SESSION_PATH
     sessions = load_all_sessions(filepath=filepath)
     return sessions.get(user_id, {})
 
 
-def save_session(user_id: str, data: Dict[str, Any], filepath: str = DEFAULT_SESSION_PATH) -> None:
+def save_session(user_id: str, data: Dict[str, Any], filepath: Optional[str] = None) -> None:
     """寫入或更新特定使用者的 Session 資料至 JSON 檔案。
 
     Args:
@@ -72,6 +76,8 @@ def save_session(user_id: str, data: Dict[str, Any], filepath: str = DEFAULT_SES
         data: 使用者 Session 資料（包含對話歷史與鎖定專案狀態等）
         filepath: Session JSON 檔案路徑
     """
+    if filepath is None:
+        filepath = DEFAULT_SESSION_PATH
     _ensure_dir_exists(filepath)
     with _file_lock:
         sessions = {}
@@ -92,7 +98,7 @@ def save_session(user_id: str, data: Dict[str, Any], filepath: str = DEFAULT_SES
         os.replace(temp_filepath, filepath)
 
 
-def delete_session(user_id: str, filepath: str = DEFAULT_SESSION_PATH) -> bool:
+def delete_session(user_id: str, filepath: Optional[str] = None) -> bool:
     """刪除特定使用者的 Session 資料。
 
     Args:
@@ -102,6 +108,8 @@ def delete_session(user_id: str, filepath: str = DEFAULT_SESSION_PATH) -> bool:
     Returns:
         bool: 若成功刪除傳回 True，若使用者原本即不存在傳回 False
     """
+    if filepath is None:
+        filepath = DEFAULT_SESSION_PATH
     _ensure_dir_exists(filepath)
     with _file_lock:
         if not os.path.exists(filepath):
@@ -121,3 +129,4 @@ def delete_session(user_id: str, filepath: str = DEFAULT_SESSION_PATH) -> bool:
             os.replace(temp_filepath, filepath)
             return True
         return False
+
