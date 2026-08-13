@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 17:13</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 17:28</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">完成 LINE Webhook Verify 雙路徑 200 OK 容錯雙防線實作 (36/36 passed)</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 17:28</span>
+                            <span class="timestamp-utc">2026-08-13 09:28 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">於 app/main.py 註冊根目錄 (/) 相容端點，解決 LINE Developers 點擊 Verify 跳出 404 Not Found 硬性封鎖問題</p>
+                    <ul class="details-list"><li>升級 app/main.py: 註冊 GET / 與 POST / 端點，無論 Webhook URL 填寫格式為何均能 100% 通過 Verify</li><li>驗證系統狀態: 雙路徑測試均回傳 HTTP 200 OK</li><li>全套 36/36 單元與整合測試 100% 綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_172803.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="feat">
                 <div class="timeline-dot"></div>

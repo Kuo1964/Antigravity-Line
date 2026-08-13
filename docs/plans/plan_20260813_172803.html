@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE Webhook Verify 404 雙防線與 Root Path 容錯修復計畫 (Implementation Plan)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>LINE Webhook Verify 404 雙防線與 Root Path 容錯修復計畫 (Implementation Plan)</h1>
+<h2>🔍 診斷原因 (Root Cause Analysis)</h2>
+<p>根據您提供的 LINE Developers 後台「Verify」驗證失敗截圖 (`404 Not Found`) 進行深度診斷：</p>
+<p>1. <strong>LINE 平台 Verify 驗證機制與 404 阻斷</strong>：</p>
+<ul>
+<li>當在 LINE Developers 後台點擊「Verify」或發送訊息時，LINE 官方伺服器會嘗試發送 HTTP POST 進行健康與連線驗證。</li>
+<li>若後台 Webhook URL 未加上 `/webhook` 後綴（填寫成 `https://professed-equivocal-lagoon.ngrok-free.dev`），請求落入根目錄 `POST /` 時，FastAPI 會直接回傳 <strong>`404 Not Found`</strong>！</li>
+<li>一旦 LINE 平台驗證得到 404，LINE 官方會<strong>硬性封鎖並停用所有手機對話訊息的轉發</strong>！</li>
+</ul>
+<p>2. <strong>背景 Uvicorn 常駐連線脫鉤</strong>：</p>
+<ul>
+<li>Shell 進程退出時若未建立完全獨立之守護進程，會導致 FastAPI 在重啟瞬間連線中斷。</li>
+</ul>
+<p>---</p>
+<h2>🛠️ 擬定修復方案 (Proposed Changes)</h2>
+<h3>1. 根目錄 (Root Path `/`) 全面相容與 200 OK 容錯 ([app/main.py](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/app/main.py))</h3>
+<ul>
+<li>為 `@app.get("/")` 與 `@app.post("/")` 註冊相容 Handler，無論 LINE Developers 後台填寫 `https://...` 或 `https://.../webhook`，驗證皆能 <strong>100% 傳回 HTTP 200 OK</strong>！</li>
+</ul>
+<h3>2. 多重常駐腳本穩定化 ([start.sh](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/start.sh))</h3>
+<ul>
+<li>採用 Python 腳本或標準獨立 Daemon 進行 `uvicorn` 進程常駐監控，確生連線永久掛載。</li>
+</ul>
+<p>---</p>
+<h2>🧪 驗證計畫 (Verification Plan)</h2>
+<p>1. <strong>Verify 端點模擬測試</strong>：</p>
+<ul>
+<li>模擬測試 `POST /` 與 `POST /webhook`，確保雙雙回傳 `HTTP 200 OK`。</li>
+</ul>
+<p>2. <strong>LINE 後台實體 Verify 點擊</strong>：</p>
+<ul>
+<li>於 LINE Developers 後台點擊「Verify」，確認跳出 <strong>「Success」</strong> 綠色成功通知。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

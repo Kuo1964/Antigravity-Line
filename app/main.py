@@ -38,6 +38,16 @@ async def health_check():
     """系統健康檢查端點"""
     return {"status": "ok", "service": "Antigravity Line Bot Bridge"}
 
+@app.get("/")
+async def root_get():
+    """根目錄 GET 相容端點：提供 LINE Verify 測試與健康狀態視圖"""
+    return {"status": "ok", "service": "Antigravity Line Bot Bridge", "endpoint": "root"}
+
+@app.post("/")
+async def root_post(request: Request, background_tasks: BackgroundTasks, x_line_signature: str = Header(None)):
+    """根目錄 POST 容錯端點：若 LINE Developers Webhook URL 未填 /webhook，亦能 100% 轉發與回應 200 OK"""
+    return await webhook(request, background_tasks, x_line_signature)
+
 async def process_background_agent_task(user_id: str, user_text: str):
     """背景處理 Antigravity Agent 推論並發送 Line Push Message (包含三段式狀態推播、心跳與 90s 非阻塞保護)"""
     lock = get_user_lock(user_id)
@@ -99,11 +109,14 @@ async def webhook(
     x_line_signature: str = Header(None)
 ):
     """Line Webhook 主處理端點"""
-    body_json = await request.json()
+    try:
+        body_json = await request.json()
+    except Exception:
+        return JSONResponse(content={"status": "ok", "message": "LINE Verify test received"}, status_code=200)
     
     events = body_json.get("events", [])
     if not events:
-        return JSONResponse(content={"status": "no events"}, status_code=200)
+        return JSONResponse(content={"status": "ok", "message": "No events in payload"}, status_code=200)
 
     for event in events:
         if event.get("type") != "message" or event.get("message", {}).get("type") != "text":
