@@ -28,10 +28,7 @@ class MacSystemGateway:
         自動處理解鎖鍵盤輸入、狀態記錄與錯誤備援。
         """
         try:
-            # 1. 記錄當前螢幕狀態
             self._ui_adapter.save_screen_state()
-            
-            # 2. 執行螢幕檢查與自動解鎖
             success = self._unlocker.ensure_unlocked(password)
             if success:
                 logger.info("macOS 螢幕處於開啟用戶端狀態，系統準備完畢")
@@ -43,7 +40,7 @@ class MacSystemGateway:
             logger.error(f"MacSystemGateway 執行解鎖準備過程發生異常: {e}")
             return False
 
-    def restore_display_state(self, initial_state: str) -> bool:
+    def restore_display_state(self, initial_state: str = "UNLOCKED") -> bool:
         """深層公開主介面：復原之前的螢幕與電源狀態"""
         try:
             self._ui_adapter.restore_screen_state()
@@ -68,5 +65,4 @@ class MacSystemGateway:
             logger.error(f"MacSystemGateway 抓取早安圖片失敗: {e}")
         return None
 
-# 全域單例
 mac_system_gateway = MacSystemGateway()

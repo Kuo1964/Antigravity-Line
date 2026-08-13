@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Any
 
 from app.services.mac_system_gateway import mac_system_gateway
+from app.services.mac_unlocker import unlock_mac
 from app.services.image_crawler import fetch_latest_good_morning_image, copy_image_to_clipboard
 from app.services.line_desktop_controller import search_and_send_image
 
@@ -68,4 +69,3 @@ def run_good_morning_workflow(target_name: str = "Private", mac_password: str = 
         mac_system_gateway.restore_display_state(initial_state)
 
     return result
-
