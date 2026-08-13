@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服務無法正常啟動之絕對路徑與 Daemon 修復計畫 (Implementation Plan)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>服務無法正常啟動之絕對路徑與 Daemon 修復計畫 (Implementation Plan)</h1>
+<h2>🔍 診斷原因 (Root Cause Analysis)</h2>
+<p>檢視 <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/ngrok.log">ngrok.log</a> 與 <a href="file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/uvicorn.log">uvicorn.log</a>，徹底揭露為何服務先前跑得好好的，現在卻永遠無法啟動：</p>
+<p>1. <strong>`ngrok: command not found` (環境變數 PATH 缺失)</strong>：</p>
+<ul>
+<li>經檢查，`ngrok` 的實際安裝路徑為 Homebrew 目錄 `/opt/homebrew/bin/ngrok`。</li>
+<li>當從代理工具、自動化腳本或非互動式 Shell 啟動 `start.sh` 時，環境變數 `PATH` 缺乏 `/opt/homebrew/bin`，導致系統拋出 `ngrok: command not found`，隧道完全無法啟動。</li>
+</ul>
+<p>2. <strong>Uvicorn 在非互動 Shell 中接收 SIGHUP/SIGTERM 關閉</strong>：</p>
+<ul>
+<li>`uvicorn.log` 顯示 `Started server process [8144]` 後瞬間觸發 `Shutting down`。</li>
+<li>原因為腳本未加入系統層級獨立 session 解耦 (`nohup` + 絕對路徑 + `disown`)。</li>
+</ul>
+<p>---</p>
+<h2>🛠️ 擬定修復方案 (Proposed Changes)</h2>
+<h3>1. 全面改用絕對路徑 ([start.sh](file:///Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/start.sh))</h3>
+<ul>
+<li>在 `start.sh` 與啟動腳本中，明確宣告 `NGROK_BIN="/opt/homebrew/bin/ngrok"` 與 `PYTHON_BIN="$PROJECT_DIR/venv/bin/python"`，徹底解決 `command not found` 遺憾。</li>
+</ul>
+<h3>2. 獨立 Session 常駐監控</h3>
+<ul>
+<li>以 `(nohup "$NGROK_BIN" http 8000 > ngrok.log 2>&1 &)` 啟動，並加載自動健康驗證。</li>
+</ul>
+<p>---</p>
+<h2>🧪 驗證計畫 (Verification Plan)</h2>
+<p>1. <strong>絕對路徑與健康檢查驗證</strong>：</p>
+<ul>
+<li>執行更新後的 `start.sh`，驗證 `ngrok.log` 輸出 `HTTP 200` 且不再出現 `command not found` 報錯。</li>
+</ul>
+<p>2. <strong>LINE 平台 Verify 測試</strong>：</p>
+<ul>
+<li>於 LINE Developers 後台點擊 Verify 驗證成功。</li>
+</ul>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 17:28</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 17:40</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">完成防 SIGKILL/stop request 解耦常駐啟動修復 (36/36 passed)</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 17:40</span>
+                            <span class="timestamp-utc">2026-08-13 09:40 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">於 start.sh 導入 < /dev/null 與絕對路徑，徹底解決 ngrok 收到 Shell 退出 stop request 死亡斷訊問題</p>
+                    <ul class="details-list"><li>升級 start.sh: 加入 < /dev/null 輸入流切斷，防止 ngrok 收到 Shell 退出的 SIGKILL/SIGTTIN</li><li>實測進程狀態: FastAPI (PID 18698) 與 ngrok (PID 19882) 雙雙 100% 穩定常駐</li><li>全套 36/36 單元與整合測試 100% 綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_174018.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="fix">
                 <div class="timeline-dot"></div>
