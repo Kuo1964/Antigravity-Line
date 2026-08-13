@@ -105,13 +105,17 @@ async def webhook(
             logger.warning(f"拒絕未授權的使用者存取: {user_id}")
             continue
 
-        # 2. 處理內建控制指令
+        # 2. 處理內建控制指令與自然語言專案列表查詢意圖
         if user_text.lower() in ["/reset", "/clear"]:
             agent_manager.reset_session(user_id)
             send_line_push_message(user_id, "🧹 對話、Session 歷史紀錄與專案鎖定已成功重置！")
             continue
 
-        if user_text.lower() in ["/projects", "/ps"]:
+        is_project_list_intent = (
+            user_text.lower() in ["/projects", "/ps"] or
+            any(kw in user_text for kw in ["有哪些專案", "專案清單", "專案列表", "專案有哪些", "所有專案", "進行中的專案", "專案正在進行"])
+        )
+        if is_project_list_intent:
             projects = project_manager.list_projects()
             session = agent_manager.get_or_create_session(user_id)
             curr = session.get("current_project")
