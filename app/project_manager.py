@@ -92,7 +92,7 @@ class ProjectManager:
         return None
 
     def get_project_file_context(self, project_info: Dict[str, Any], prompt: str) -> str:
-        """根據給定的專案資訊與 Prompt，深度掃描與預載專案中的檔案與文件內容」"""
+        """根據給定的專案資訊與 Prompt，智慧過濾、優化與預載專案中的核心檔案內容」"""
         if not project_info or not isinstance(project_info, dict):
             return ""
 
@@ -107,11 +107,11 @@ class ProjectManager:
         if not proj_path or not os.path.exists(proj_path) or not os.path.isdir(proj_path):
             return "\n".join(context_lines)
 
-        ignore_dirs = {".git", ".idea", ".vscode", "node_modules", "venv", "__pycache__"}
+        ignore_dirs = {".git", ".idea", ".vscode", "node_modules", "venv", "__pycache__", ".venv"}
 
         try:
             # 遍歷專案目錄 (支援多層子目錄掃描，最高 3 層深度)
-            markdown_files = []
+            candidate_files = []
             for root, dirs, files in os.walk(proj_path):
                 dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
                 depth = root[len(proj_path):].count(os.sep)
@@ -124,24 +124,44 @@ class ProjectManager:
                     full_f_path = os.path.join(root, f)
                     rel_f_path = os.path.relpath(full_f_path, proj_path)
 
-                    # 若檔名直接出現在 prompt 中
-                    if f in prompt or rel_f_path in prompt:
-                        with open(full_f_path, "r", encoding="utf-8", errors="ignore") as fh:
-                            content = fh.read(4000)
-                            context_lines.append(f"\n[專案檔案 '{rel_f_path}' 的實際內容]\n{content}")
+                    # 跳過大於 50KB 的歷史紀錄/超大 log/update 檔案，防止 Prompt 膨脹
+                    try:
+                        file_size = os.path.getsize(full_f_path)
+                        if file_size > 50 * 1024 and not f.endswith(".md"):
+                            continue
+                        if file_size > 80 * 1024: # 超過 80KB 的大檔跳過
+                            continue
+                    except Exception:
+                        pass
 
+                    # 優先比對
                     if f.endswith(".md") or f.endswith(".json") or f.endswith(".txt"):
-                        markdown_files.append((rel_f_path, full_f_path))
+                        priority = 1
+                        # 檔名包含行程/規畫/README 者設為最高優先級
+                        if any(kw in f.lower() or kw in rel_f_path.lower() for kw in ["行程", "itinerary", "summary", "readme", "詳細"]):
+                            priority = 0
+                        candidate_files.append((priority, rel_f_path, full_f_path))
 
-            # 如果未透過檔名精確比對成功，且提及行程/規劃/狀態，自動預載 key 文檔 (最多預載 3 個文檔)
-            if not any("[專案檔案" in line for line in context_lines) and markdown_files:
-                for rel_path, full_path in markdown_files[:3]:
+            # 依優先級排序候選檔案
+            candidate_files.sort(key=lambda x: x[0])
+
+            # 若 Prompt 中有指定特定檔名
+            for priority, rel_f_path, full_f_path in candidate_files:
+                f_name = os.path.basename(full_f_path)
+                if f_name in prompt or rel_f_path in prompt:
+                    with open(full_f_path, "r", encoding="utf-8", errors="ignore") as fh:
+                        content = fh.read(2500)
+                        context_lines.append(f"\n[專案檔案 '{rel_f_path}' 的實際內容]\n{content}")
+
+            # 若尚未預載到特定檔案，預載前 2 個最高優先級核心 Markdown 檔
+            if not any("[專案檔案" in line for line in context_lines) and candidate_files:
+                for priority, rel_path, full_path in candidate_files[:2]:
                     with open(full_path, "r", encoding="utf-8", errors="ignore") as fh:
-                        content = fh.read(3000)
+                        content = fh.read(2500)
                         context_lines.append(f"\n[專案檔案 '{rel_path}' 的實際內容]\n{content}")
 
         except Exception as e:
-            logger.warning(f"深度掃描與預載專案檔案內容失敗: {e}")
+            logger.warning(f"智慧過濾與預載專案檔案內容失敗: {e}")
 
         return "\n".join(context_lines)
 

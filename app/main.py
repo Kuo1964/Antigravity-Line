@@ -39,7 +39,7 @@ async def health_check():
     return {"status": "ok", "service": "Antigravity Line Bot Bridge"}
 
 async def process_background_agent_task(user_id: str, user_text: str):
-    """背景處理 Antigravity Agent 推論並發送 Line Push Message (包含三段式狀態推播與心跳)"""
+    """背景處理 Antigravity Agent 推論並發送 Line Push Message (包含三段式狀態推播、心跳與 45s 強制解鎖防禦)"""
     lock = get_user_lock(user_id)
     logger.info(f"開始背景執行 Agent 任務 (User: {user_id}, Prompt: '{user_text}')")
     
@@ -55,11 +55,17 @@ async def process_background_agent_task(user_id: str, user_text: str):
     heartbeat_task = asyncio.create_task(heartbeat_loop())
 
     try:
-        # 執行 Agent 任務 (內含非阻塞 asyncio.to_thread LLM 呼叫與專案內容注入)
-        result_text = await agent_manager.run_agent_task(user_id, user_text)
+        # 執行 Agent 任務 (加入 45 秒最大超時防禦)
+        result_text = await asyncio.wait_for(
+            agent_manager.run_agent_task(user_id, user_text),
+            timeout=45.0
+        )
         
         # 第三段：將最終成果推播給使用者
         line_delivery_adapter.deliver_text(user_id, result_text)
+    except asyncio.TimeoutError:
+        logger.error(f"背景 Agent 任務超時 (45s): User {user_id}")
+        line_delivery_adapter.deliver_text(user_id, "⚠️ 任務執行耗時過長已超時降級，請重新發送或嘗試縮短指令內容。")
     except Exception as e:
         logger.error(f"背景 Agent 任務執行發生異常: {e}")
         line_delivery_adapter.deliver_text(user_id, f"❌ Agent 執行發生錯誤: {e}")
@@ -71,7 +77,7 @@ async def process_background_agent_task(user_id: str, user_text: str):
         except asyncio.CancelledError:
             pass
 
-        # 釋放使用者的 Mutex Lock
+        # 絕對釋放使用者的 Mutex Lock
         if lock.locked():
             lock.release()
 

@@ -149,8 +149,7 @@ class AgentSessionEngine:
     async def process_user_turn(self, user_id: str, prompt: str) -> str:
         """
         深層公開主介面：極簡單一入口。
-        對外隱藏 Gemini API 呼叫、Search Grounding、對話歷史壓縮、雙軌專案注入，
-        包含 Gemini 輕量級意圖分類與高風險二次確認機制 (TICKET-004)。
+        包含非阻塞 LLM 呼叫、25 秒逾時保護與動態 Grounding 適配。
         """
         self.active_tasks[user_id] = True
         session = self.get_or_create_session(user_id)
@@ -176,41 +175,61 @@ class AgentSessionEngine:
 
             api_key = settings.GEMINI_API_KEY.strip()
 
-            # 若未設定 GEMINI_API_KEY
             if not api_key:
                 logger.warning("未偵測到有效的 GEMINI_API_KEY，使用系統降級回答。")
                 return (
                     "🤖 系統未偵測到 GEMINI_API_KEY，請於主機上的 `.env` 設定 `GEMINI_API_KEY` 以開啓完整 AI Agent 對話能力。"
                 )
 
-            # 自動注入 Workspace 上下文與預載檔案內容 (包含雙軌專案切換)
+            # 自動注入 Workspace 上下文與預載檔案內容
             augmented_prompt = self._inject_workspace_context(user_id, target_prompt)
-            # 自動壓減與讀取歷史紀錄
             history_context = self._compress_history_if_needed(session["history"])
 
             full_prompt = f"{history_context}使用者: {augmented_prompt}\nAI:" if history_context else augmented_prompt
 
-            # 呼叫 Gemini SDK (透過 asyncio.to_thread 確保非阻塞)
+            # 智慧 Grounding 適配：若 Prompt 本身已包含專案文件上下文，且未顯式要求上網搜尋，關閉以加速
+            need_web_search = settings.ENABLE_WEB_SEARCH
+            if "[專案檔案" in augmented_prompt and not any(kw in target_prompt.lower() for kw in ["搜尋", "上網", "最新新聞", "search"]):
+                need_web_search = False
+
+            # 呼叫 Gemini SDK (透過 asyncio.to_thread 搭配 25 秒 Timeout)
             try:
                 from google import genai
                 from google.genai import types
 
                 client = genai.Client(api_key=api_key)
 
-                # 配置 Google Search Grounding 即時連網工具
                 config = None
-                if settings.ENABLE_WEB_SEARCH:
+                if need_web_search:
                     config = types.GenerateContentConfig(
                         tools=[types.Tool(google_search=types.GoogleSearch())]
                     )
 
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        client.models.generate_content,
+                        model='gemini-2.5-flash',
+                        contents=full_prompt,
+                        config=config
+                    ),
+                    timeout=25.0
+                )
+
+                reply_text = response.text.strip()
+                session["history"].append({"user": target_prompt, "agent": reply_text})
+                session_store.save_session(user_id, session)
+                return reply_text
+
+            except asyncio.TimeoutError:
+                logger.warning("Gemini 2.5 Flash 生成超時 (25s)，自動進行簡化備用呼叫...")
+                from google import genai
+                client = genai.Client(api_key=api_key)
                 response = await asyncio.to_thread(
                     client.models.generate_content,
                     model='gemini-2.5-flash',
                     contents=full_prompt,
-                    config=config
+                    config=None
                 )
-
                 reply_text = response.text.strip()
                 session["history"].append({"user": target_prompt, "agent": reply_text})
                 session_store.save_session(user_id, session)

@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 12:20</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 15:37</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">完成修復計畫：優化專案文檔過濾、加上 25s/45s 逾時與自動解鎖防禦</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 15:37</span>
+                            <span class="timestamp-utc">2026-08-13 07:37 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">解決專案行程大文檔導致之 Prompt 膨脹、Gemini 生成超時與 Task 鎖未釋放問題</p>
+                    <ul class="details-list"><li>優化 project_manager.py: 過濾 >50KB 大檔案，優先讀取行程 md 檔並限制 2500 字</li><li>優化 agent_session_engine.py: 智慧適配 Grounding 與 25 秒 wait_for 逾時防禦</li><li>優化 app/main.py: 加入 45 秒硬性解鎖 Guard，全套 36 個測試 100% 綠燈</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_153756.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="feat">
                 <div class="timeline-dot"></div>
