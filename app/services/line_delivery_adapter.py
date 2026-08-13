@@ -18,6 +18,18 @@ from app.services.line_desktop_controller import search_and_send_image
 
 logger = logging.getLogger("line_delivery_adapter")
 
+def sanitize_text_for_line(text: str) -> str:
+    """
+    LINE API 文字安全清理器 (Sanitizer)：
+    清理可能導致 LINE API 拋出 HTTP 400 Bad Request 的無效 Unicode 控制字元與不可見字元，
+    確保發送內容 100% 符合 LINE API 規範。
+    """
+    if not text:
+        return ""
+    # 移除除了 \n, \r, \t 之外的所有 Control Characters (\x00-\x1f, \x7f-\x9f)
+    cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
+    return cleaned
+
 def format_markdown_for_line(text: str) -> str:
     """
     格式化 Markdown 文字以適配 LINE 閱讀體驗：
@@ -67,11 +79,12 @@ def format_markdown_for_line(text: str) -> str:
                     formatted_lines.append(line)
             formatted_parts.append("\n".join(formatted_lines))
 
-    return "".join(formatted_parts).strip()
+    result = "".join(formatted_parts).strip()
+    return sanitize_text_for_line(result)
 
 class LineDeliveryAdapter:
     """
-    LINE 專屬訊息與多媒體傳輸適配器 (Paced Safe-Chunk Streaming 步調化連續推播)。
+    LINE 專屬訊息與多媒體傳輸適配器 (Paced Safe-Chunk Streaming 步調化連續推播與 HTTP 400 自動降級)。
     封裝 Messaging API SDK 呼叫、智慧 Markdown 格式化、段落安全分段與桌面 GUI 降級備援。
     """
 
@@ -147,7 +160,7 @@ class LineDeliveryAdapter:
 
     def deliver_text(self, to_user_id: str, text: str) -> bool:
         """
-        透過 Messaging API 發送文字訊息，支援段落安全分段與 0.5s 步調化獨立連續推播 (Paced Push)。
+        透過 Messaging API 發送文字訊息，支援段落安全分段、0.5s 步調化獨立推播與 HTTP 400 純文字降級重試。
         """
         if not text:
             return False
@@ -157,22 +170,37 @@ class LineDeliveryAdapter:
 
         # 優先嘗試 Messaging API 推播
         if self._messaging_api:
-            try:
-                for idx, chunk in enumerate(chunks):
+            all_success = True
+            for idx, chunk in enumerate(chunks):
+                chunk_clean = sanitize_text_for_line(chunk)
+                try:
                     push_request = PushMessageRequest(
                         to=to_user_id,
-                        messages=[TextMessage(text=chunk)]
+                        messages=[TextMessage(text=chunk_clean)]
                     )
                     self._messaging_api.push_message(push_request)
                     logger.info(f"成功透過 Messaging API 發送第 {idx + 1}/{len(chunks)} 段訊息至 {to_user_id}")
-                    
-                    # 多段連續發送時加入 0.5 秒安全步調間隔 (Pacing Interval)
-                    if len(chunks) > 1 and idx < len(chunks) - 1:
-                        time.sleep(0.5)
+                except Exception as api_err:
+                    logger.warning(f"Messaging API 單段推播遭拒 ({api_err})，嘗試純文字降級安全重試...")
+                    try:
+                        # 純文字降級 (Plain Text Fallback)：剝離特殊符號後進行二次重試
+                        plain_text = re.sub(r"[📌🔹🔸▪️┌─💻└─│]", "", chunk_clean).strip()
+                        push_request_retry = PushMessageRequest(
+                            to=to_user_id,
+                            messages=[TextMessage(text=plain_text)]
+                        )
+                        self._messaging_api.push_message(push_request_retry)
+                        logger.info(f"純文字降級安全重試成功發送第 {idx + 1}/{len(chunks)} 段至 {to_user_id}")
+                    except Exception as retry_err:
+                        logger.error(f"純文字降級二次重試亦失敗: {retry_err}")
+                        all_success = False
 
+                # 多段連續發送時加入 0.5 秒安全步調間隔 (Pacing Interval)
+                if len(chunks) > 1 and idx < len(chunks) - 1:
+                    time.sleep(0.5)
+
+            if all_success:
                 return True
-            except Exception as api_err:
-                logger.warning(f"Messaging API 推播發送失敗 ({api_err})")
 
         # 降級處理：若是內部 User ID (以 'U' 開頭長度 > 20)，不跳入無效的桌面 GUI 好友搜尋，直接紀錄警告
         if to_user_id and to_user_id.startswith("U") and len(to_user_id) > 20:

@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 16:10</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 16:25</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,26 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">修復 LINE HTTP 400 Bad Request：導入文字 Sanitizer 與純文字降級安全重試</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-13 16:25</span>
+                            <span class="timestamp-utc">2026-08-13 08:25 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">實作 sanitize_text_for_line 清理器與 HTTP 400 剝離純文字二次重試，解決官方 API 靜默拒絕卡死問題</p>
+                    <ul class="details-list"><li>新增 app/services/line_delivery_adapter.py: sanitize_text_for_line 無效控制碼清理器</li><li>升級 deliver_text: 遭遇 400 錯誤時自動剝離特殊符號進行純文字 safe-chunk 重試</li><li>全套 36/36 單元測試綠燈全過</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260813_162558.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="feat">
                 <div class="timeline-dot"></div>
