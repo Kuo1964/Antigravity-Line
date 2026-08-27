@@ -13,31 +13,72 @@ class MacUnlocker:
     維護完全相容性。
     """
 
-    def is_screen_locked(self) -> bool:
-        """檢查螢幕是否被鎖定"""
+    # 允許模擬鍵盤輸入密碼的前台行程白名單 (僅限 macOS 系統登入與螢幕保護程式)
+    ALLOWED_UNLOCK_PROCESSES = {"loginwindow", "screensaverengine"}
+
+    def get_frontmost_app_name(self) -> Optional[str]:
+        """取得當前最上層活動中的應用程式名稱"""
         try:
-            # 使用 sys.executable 確保吃到 venv 內的 Quartz 套件
-            cmd = f"{sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            return "CGSSessionScreenIsLocked = 1" in res.stdout
+            cmd = "osascript -e 'tell application \"System Events\" to get name of first application process whose frontmost is true'"
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            if res.returncode == 0:
+                app_name = res.stdout.strip()
+                return app_name if app_name else None
+            return None
         except Exception as e:
-            logger.error(f"is_screen_locked 發生錯誤: {e}")
+            logger.warning(f"無法取得當前最上層行程名稱: {e}")
+            return None
+
+    def is_screen_locked(self) -> bool:
+        """檢查螢幕是否被鎖定 (嚴格判斷，預設安全 Fail-closed)"""
+        try:
+            # 透過 launchctl asuser 強制進入 GUI Session 命名空間，解決 cron 背景無法讀取狀態的問題
+            cmd = f"launchctl asuser $(id -u) {sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            output = res.stdout
+            
+            # 如果成功讀取到鎖定標籤且明確為 1
+            if "CGSSessionScreenIsLocked = 1" in output:
+                return True
+            
+            # 若無明確鎖定標籤，一律安全判定為未鎖定 (嚴禁任何盲打密碼 Fallback)
+            return False
+            
+        except Exception as e:
+            logger.error(f"is_screen_locked 檢查異常: {e}")
+            # 發生例外時，採取安全預設：判定未鎖定以防止誤敲密碼
             return False
 
     def unlock_screen(self, password: Optional[str] = None) -> bool:
-        """解鎖 macOS 螢幕"""
+        """安全解鎖 macOS 螢幕 (含前台白名單防護與防洩密檢查)"""
         logger.info("發送喚醒訊號 (caffeinate)...")
         subprocess.run(["caffeinate", "-u", "-t", "3"], check=False)
         time.sleep(1.0)
         
+        # 1. 第一道防線：狀態檢驗，若未鎖定則無須打密碼直接返回成功
         if not self.is_screen_locked():
+            logger.info("螢幕當前未鎖定，無須輸入密碼。")
             return True
             
         if not password:
-            logger.warning("未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
-            return True
+            logger.warning("螢幕處於鎖定狀態但未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
+            return False
 
-        logger.info("開始模擬輸入密碼進行 macOS 螢幕解鎖...")
+        # 2. 第二道防線：前台焦點程式白名單檢查 (核心防盲打防線)
+        front_app = self.get_frontmost_app_name()
+        logger.info(f"檢測當前最上層前台程式為: [{front_app}]")
+        
+        if front_app:
+            norm_app = front_app.lower()
+            if norm_app not in self.ALLOWED_UNLOCK_PROCESSES:
+                logger.critical(
+                    f"🚨 [安全防護攔截] 當前前台應用程式為 '{front_app}'，非系統登入畫面 (loginwindow)！"
+                    f"為防止密碼外洩，已立即中止解鎖並嚴禁發送鍵盤事件！"
+                )
+                return False
+
+        # 3. 通過檢驗後才執行受控模擬輸入
+        logger.info("通過前台驗證 (loginwindow)，開始安全模擬輸入密碼進行解鎖...")
         try:
             applescript_cmd = f'''
             tell application "System Events"
@@ -48,9 +89,17 @@ class MacUnlocker:
                 key code 36
             end tell
             '''
-            subprocess.run(["osascript", "-e", applescript_cmd], check=True)
+            subprocess.run(["osascript", "-e", applescript_cmd], check=True, timeout=10)
             time.sleep(2.0)
-            return True
+            
+            # 4. 解鎖後狀態複查
+            is_still_locked = self.is_screen_locked()
+            if not is_still_locked:
+                logger.info("macOS 螢幕已成功解鎖 🔓")
+                return True
+            else:
+                logger.warning("密碼已輸入，但螢幕仍處於鎖定狀態 (可能密碼不符或介面延遲)。")
+                return False
         except Exception as e:
             logger.error(f"模擬解鎖密碼失敗: {e}")
             return False

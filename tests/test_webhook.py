@@ -21,7 +21,8 @@ def test_webhook_no_events():
     """測試當 Line 發送空 events 列表時秒回 HTTP 200 OK」"""
     response = client.post("/webhook", json={"events": []})
     assert response.status_code == 200
-    assert response.json() == {"status": "no events"}
+    assert response.json()["status"] == "ok"
+    assert "No events" in response.json()["message"]
 
 def test_webhook_unauthorized_user():
     """測試非授權 Line User ID 存取時被拒絕」"""
