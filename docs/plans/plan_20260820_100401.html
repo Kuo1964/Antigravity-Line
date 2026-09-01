@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>`/safe-guardrail` 自動化變更規格與防護計畫 (V8)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>`/safe-guardrail` 自動化變更規格與防護計畫 (V8)</h1>
+<p>根據您的指示，我啟動了 Safe Guardrail 機制，針對今晚 21:30 (排程目標：Sophia Kuo) 發送失敗的問題進行了深度偵查，並訂定了安全變更規格。</p>
+<p>---</p>
+<h2>🛡️ 階段一：Codebase Reconnaissance (程式碼偵查)</h2>
+<h3>🚨 21:30 發送失敗根本原因</h3>
+<p>從 Log 中發現，今晚的失敗原因與昨天早上「貼上假圖片」的起因是同一個源頭：<strong>網路圖片下載模組 (`image_crawler.py`) 的防護過於脆弱</strong>！</p>
+<p>1. 爬蟲找到了台塑企業的早安圖網址 (`https://sticker.fpg.com.tw/...`)。</p>
+<p>2. 爬蟲嘗試下載時，發生了 `Read timed out` (連線超時)。</p>
+<p>3. <strong>致命錯誤</strong>：程式在抓到例外錯誤時，沒有自動切換去抓備用的 Unsplash 圖片，反而<strong>直接把這串「網址文字」當成檔案路徑</strong>回傳給了下一步！</p>
+<p>4. 負責將圖片塞進剪貼簿的程式發現「這串網址」在電腦硬碟裡根本找不到，於是直接報錯 `[ERROR] 圖片檔案不存在`，任務直接宣告中斷失敗。</p>
+<h3>📌 受影響半徑 (Impact Surface)</h3>
+<ul>
+<li>`app/services/image_crawler.py` (圖片下載與防護機制)</li>
+<li>`app/services/line_desktop_controller.py` (鍵盤操作與焦點)</li>
+<li>`app/services/macos_ui_adapter.py` (底層按鍵與剪貼簿操作)</li>
+</ul>
+<h3>🔒 不可更動的核心/受保護模組</h3>
+<ul>
+<li>`login_line_only.py` 等其他獨立排程腳本。</li>
+<li>`monitor_log_analyzer.py` 監控排程。</li>
+</ul>
+<p>---</p>
+<h2>🛡️ 階段二：Brownfield Change-Spec (變更規格化)</h2>
+<p>為了徹底根絕這幾天連續發生的：<strong>假圖報錯、超時未備援、中文輸入法吃字、座標偏移失焦</strong>等所有相關問題，我規劃了以下最小變更 (Minimal Intervention) 與驗證標準：</p>
+<h3>1. 圖片爬蟲防護 (Image Crawler Guardrail)</h3>
+<ul>
+<li><strong>變更要求</strong>：嚴格檢查 `resp.status_code` 與 `Content-Type` 是否為 `image/*`，且檔案大小必須 > 1KB。</li>
+<li><strong>例外處理</strong>：無論是「超時 (Timeout)」、「被擋 (403)」、「下載到文字檔」，一律自動熔斷並切換至 Unsplash 備用圖片，確保 100% 必定能回傳一張真實的圖片路徑。</li>
+</ul>
+<h3>2. 全鍵盤無失焦操作 (Keyboard-Only Navigation)</h3>
+<ul>
+<li><strong>變更要求</strong>：移除危險的 `win_h - 60` 絕對座標點擊。</li>
+<li><strong>行為約束</strong>：透過 `Cmd + 2` 切換聊天室列表，透過 `Cmd + F` 定位搜尋框。利用 LINE 點擊聯絡人後「自動對焦輸入框」的特性，直接進行後續操作，無視任何視窗陰影與尺寸變化。</li>
+</ul>
+<h3>3. 百分百無損中文輸入 (Clipboard Paste)</h3>
+<ul>
+<li><strong>變更要求</strong>：全面淘汰 `appscript` 的 `keystroke` 打字模擬。</li>
+<li><strong>行為約束</strong>：不論是搜尋名字（如郭泊彤）還是發送文字，一律使用 `pbcopy` 寫入剪貼簿後發送 `Cmd + V`。</li>
+</ul>
+<p>---</p>
+<h2>User Review Required (等待指示)</h2>
+<p>> [!IMPORTANT]</p>
+<p>> 按照 `/safe-guardrail` 的標準流程，我已經為您完成了階段一（偵查）與階段二（規格化）。</p>
+<p>></p>
+<p>> 由於您特別交代了<strong>「先不要動手」</strong>，我暫停了階段三（安全修改）與階段四（回歸驗證）。我們終於把這幾天這三個藏得很深的底層 Bug 全部揪出來並準備好解法了。請問您想先維持原狀觀察，還是授權我立刻點擊 <strong>Proceed</strong> 進入階段三，將這些高防護規格一次性實裝到系統中？</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

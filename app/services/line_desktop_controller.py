@@ -11,10 +11,19 @@ def focus_line_app(adapter: MacOSUIAdapter) -> bool:
     """
     logger.info("正在喚醒並聚焦 LINE 桌面版...")
     try:
-        # 1. 喚起主視窗
+        import subprocess
+        # 1. 為了確保徹底清除睡眠模式與幕前調度的幽靈視窗 Bug，強制關閉並重啟
+        logger.info("正在強制關閉 LINE (killall) 以重置視窗狀態...")
+        subprocess.run(["killall", "-9", "LINE"], check=False)
+        time.sleep(3.0)
+        
+        logger.info("正在重新啟動 LINE...")
+        subprocess.run(["open", "-a", "LINE"], check=False)
+        # 給予充足等待時間讓主視窗完成渲染
+        time.sleep(8.0)
+        
+        # 2. 輔助聚焦與確保在最上層
         adapter.reopen_app("LINE")
-        # 2. 確保視窗取消隱藏 (輔助保險機制)
-        adapter.unhide_window("LINE")
         return True
     except Exception as e:
         logger.error(f"聚焦 LINE App 異常: {e}")

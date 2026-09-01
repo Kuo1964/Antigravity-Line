@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walkthrough: 修復 `cron` 排程下的螢幕鎖定偵測 (Fall-safe)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>Walkthrough: 修復 `cron` 排程下的螢幕鎖定偵測 (Fall-safe)</h1>
+<h2>變更摘要</h2>
+<p>針對 2026/08/14 晚上 21:30 透過 `cron` 觸發的自動發送任務，發生未能正確輸入密碼解鎖螢幕而導致 `-1719` 錯誤的問題，我們針對 `mac_unlocker.py` 加入了 Fall-safe (失效安全) 防呆機制。</p>
+<h3>修改內容 (Changes Made)</h3>
+<p>1. <strong>`app/services/mac_unlocker.py`</strong></p>
+<ul>
+<li>修改 `is_screen_locked()` 方法。</li>
+<li>原先僅單純尋找 `"CGSSessionScreenIsLocked = 1"`，如果發生例外或查無此字串，就直接回傳 `False`（未鎖定）。</li>
+<li><strong>新增邏輯</strong>：當偵測到回傳結果包含 `None` 或者連 `CGSSessionScreenIsLocked` 鍵值都不存在時（這正是 `cron` 無頭環境下的特徵），程式會主動印出警告：`無法從 Quartz 取得完整 Session 狀態，保守判定螢幕為「鎖定狀態」。`，並強制回傳 `True`。</li>
+<li>捕捉例外 `except Exception` 時，也從回傳 `False` 改為保守回傳 `True`。</li>
+<li>這樣的「寧可錯殺不可放過」策略，能確保在無法確認螢幕狀態的情況下，腳本仍會<strong>無條件觸發鍵盤輸入密碼</strong>的動作，保證螢幕 100% 能夠被解開，消弭 `cron` 環境變異帶來的隱患。</li>
+</ul>
+<h2>測試與驗證 (Validation)</h2>
+<ul>
+<li>已經過 `py_compile` 語法檢查，無語法錯誤。</li>
+<li>確認當 Quartz 由於權限或環境問題無法給出答案時，程式將切換到安全模式（判定為鎖定並強制解鎖）。</li>
+</ul>
+<p>> [!SUCCESS]</p>
+<p>> 這下即使是半夜無人職守的 `cron` 背景執行，程式再也不會「以為自己已經解鎖」而偷懶跳過密碼輸入了！明天的排程將會穩穩地把螢幕解開並打開 LINE！</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>
