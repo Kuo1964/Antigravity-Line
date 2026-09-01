@@ -73,3 +73,20 @@ def test_get_frontmost_app_name_success(unlocker):
         mock_run.return_value = MagicMock(returncode=0, stdout="loginwindow\n")
         app_name = unlocker.get_frontmost_app_name()
         assert app_name == "loginwindow"
+
+def test_locked_screen_with_none_front_app_blocks_password(unlocker):
+    """測試案例 6：當前台行程為 None (無法判定或逾時) 時，嚴格 Fail-Closed 阻斷密碼輸入"""
+    with patch.object(unlocker, "is_screen_locked", return_value=True), \
+         patch.object(unlocker, "get_frontmost_app_name", return_value=None), \
+         patch("subprocess.run") as mock_run:
+        
+        result = unlocker.unlock_screen(password="MySecretPassword123")
+        assert result is False
+        
+        # 確保絕無調用 osascript 輸入密碼
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0]
+            if isinstance(cmd, list):
+                assert "osascript" not in cmd
+            elif isinstance(cmd, str):
+                assert "osascript" not in cmd

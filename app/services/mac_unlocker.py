@@ -17,10 +17,22 @@ class MacUnlocker:
     ALLOWED_UNLOCK_PROCESSES = {"loginwindow", "screensaverengine"}
 
     def get_frontmost_app_name(self) -> Optional[str]:
-        """取得當前最上層活動中的應用程式名稱"""
+        """取得當前最上層活動中的應用程式名稱 (優先使用 Cocoa AppKit，備援 AppleScript)"""
+        # 方法 1: 透過 Cocoa 原生 NSWorkspace 取得 (超快速且無 System Events 權限逾時問題)
+        try:
+            from AppKit import NSWorkspace
+            front_app = NSWorkspace.sharedWorkspace().frontmostApplication()
+            if front_app:
+                name = front_app.localizedName() or front_app.bundleIdentifier()
+                if name:
+                    return str(name).strip()
+        except Exception:
+            pass
+
+        # 方法 2: 備援 AppleScript 查詢
         try:
             cmd = "osascript -e 'tell application \"System Events\" to get name of first application process whose frontmost is true'"
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
             if res.returncode == 0:
                 app_name = res.stdout.strip()
                 return app_name if app_name else None
@@ -50,7 +62,7 @@ class MacUnlocker:
             return False
 
     def unlock_screen(self, password: Optional[str] = None) -> bool:
-        """安全解鎖 macOS 螢幕 (含前台白名單防護與防洩密檢查)"""
+        """安全解鎖 macOS 螢幕 (嚴格 Fail-Closed 防盲打防護)"""
         logger.info("發送喚醒訊號 (caffeinate)...")
         subprocess.run(["caffeinate", "-u", "-t", "3"], check=False)
         time.sleep(1.0)
@@ -64,21 +76,21 @@ class MacUnlocker:
             logger.warning("螢幕處於鎖定狀態但未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
             return False
 
-        # 2. 第二道防線：前台焦點程式白名單檢查 (核心防盲打防線)
+        # 2. 第二道防線：前台焦點程式白名單檢查 (核心 Fail-Closed 防線)
         front_app = self.get_frontmost_app_name()
         logger.info(f"檢測當前最上層前台程式為: [{front_app}]")
         
-        if front_app:
-            norm_app = front_app.lower()
-            if norm_app not in self.ALLOWED_UNLOCK_PROCESSES:
-                logger.critical(
-                    f"🚨 [安全防護攔截] 當前前台應用程式為 '{front_app}'，非系統登入畫面 (loginwindow)！"
-                    f"為防止密碼外洩，已立即中止解鎖並嚴禁發送鍵盤事件！"
-                )
-                return False
+        # 🚨 嚴格 Fail-Closed 規則：
+        # 只要前台程式為 None (無法判定) 或非登入程式 (例如 Finder, LINE, Chrome)，一律絕對禁止輸入密碼！
+        if not front_app or front_app.lower() not in self.ALLOWED_UNLOCK_PROCESSES:
+            logger.critical(
+                f"🚨 [安全防護攔截] 當前前台應用程式為 '{front_app}'，非系統登入畫面 (loginwindow)！"
+                f"為保護隱私與系統安全，已立即熔斷中止解鎖，絕對嚴禁發送鍵盤事件！"
+            )
+            return False
 
-        # 3. 通過檢驗後才執行受控模擬輸入
-        logger.info("通過前台驗證 (loginwindow)，開始安全模擬輸入密碼進行解鎖...")
+        # 3. 通過嚴格白名單檢驗後才執行受控模擬輸入
+        logger.info("通過前台登入畫面驗證 (loginwindow)，開始安全模擬輸入密碼進行解鎖...")
         try:
             applescript_cmd = f'''
             tell application "System Events"

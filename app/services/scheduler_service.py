@@ -30,9 +30,8 @@ def run_good_morning_workflow(target_name: str = "Private", mac_password: str = 
     }
 
     try:
-        # 1. 透過 Gateway 解鎖 macOS 螢幕，同時呼叫相容介面 unlock_mac
+        # 1. 透過 Gateway 解鎖 macOS 螢幕
         logger.info("步驟 1/4: 透過 Gateway 解鎖與喚醒 macOS 螢幕...")
-        unlock_mac(mac_password)
         if not mac_system_gateway.ensure_unlocked_and_ready(mac_password):
             logger.warning("解鎖可能不完全，繼續嘗試發送...")
 
