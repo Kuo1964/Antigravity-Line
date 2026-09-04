@@ -1,6 +1,6 @@
 #!/bin/bash
 # 夜間發送與解鎖任務
-LOG_FILE="/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/temp/timeline_test.log"
+LOG_FILE="/Users/johnkuo/worktemp/Antigravity-Line/temp/timeline_test.log"
 echo "=== $(date) [Night] 夜間任務啟動 ===" >> "$LOG_FILE"
 
 # 1. 喚醒螢幕
@@ -15,7 +15,7 @@ sleep 15
 
 # 3. 呼叫 Python 發送程式 (目標: Private)
 echo "[Night] 執行發送腳本 (Private)..." >> "$LOG_FILE"
-cd "/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line"
+cd "/Users/johnkuo/worktemp/Antigravity-Line"
 venv/bin/python scripts/send_daily_morning_card.py --target Private >> "$LOG_FILE" 2>&1
 
 echo "=== $(date) [Night] 夜間任務完成 ===" >> "$LOG_FILE"

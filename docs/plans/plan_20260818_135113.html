@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>`/diagnosing-bugs` 分析報告與修復計畫 (V6)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>`/diagnosing-bugs` 分析報告與修復計畫 (V6)</h1>
+<h2>🔍 Bug Diagnosis (為何圖片沒貼上 LINE 視窗？)</h2>
+<p>您提供的截圖與檔案資訊非常精準，直接推翻了前面的「假圖片」假說。這張早安圖片是<strong>100% 完美的 JPEG 圖檔</strong>，而且日誌顯示它也確實成功被塞進了 Mac 的剪貼簿中！</p>
+<p>既然剪貼簿裡有圖，那為什麼 `Cmd+V` 沒有把它貼上？</p>
+<p>我仔細比對了腳本滑鼠點擊的座標與 LINE 介面的相對位置，抓到了這個真正的元凶：<strong>「手殘點錯位置，導致輸入框失去焦點！」</strong></p>
+<h3>事發還原：</h3>
+<p>1. 腳本成功點擊了左側的「Sharon Chou」搜尋結果，此時右側聊天室開啟，<strong>LINE 其實已經自動把游標對準了底下的輸入框</strong>。</p>
+<p>2. 但是！我們的腳本為了「保險起見」，安排了一個強制點擊輸入框的動作（步驟 D）。</p>
+<p>3. 腳本計算的點擊座標是 `視窗最底部往上 60 像素 (win_h - 60)`。</p>
+<p>4. 問題來了：macOS 的視窗外框通常包含了一圈透明的陰影（Shadow），這會被算進視窗總高度裡。扣掉陰影後，`往上 60 像素` 這個位置，<strong>剛剛好落在 LINE 輸入框下方的「工具列」（也就是有迴紋針、書籤、笑臉圖案的那一排）！</strong></p>
+<p>5. 於是，腳本「自作聰明」地點擊了工具列上的空白處。這致命的一擊，<strong>直接把原本在輸入框裡的打字游標給點掉了（失去焦點）</strong>。</p>
+<p>6. 接下來腳本如常送出 `Cmd+V` (貼上) 與 `Return` (發送)，但因為游標已經不在輸入框裡，這些快捷鍵全部打在了空氣中，LINE 完全沒有反應。</p>
+<h2>🗺️ Codebase Recon & Context Map</h2>
+<ul>
+<li><strong>出錯模組</strong>: `app/services/line_desktop_controller.py`</li>
+<li><strong>出錯行數</strong>: `chat_input_y = win_y + win_h - 60`</li>
+</ul>
+<h2>🛡️ Guardrail Spec</h2>
+<h3>Acceptance Criteria</h3>
+<p>1. <strong>修正座標</strong>: 將點擊高度從 `win_h - 60` 往上移至 `win_h - 100`，確保它絕對會點在「輸入訊息」這四個字的文字框正中央，避開工具列。</p>
+<p>2. <strong>實作 V4 計畫</strong>: 順便將之前討論過的「中文打字失效」與「快捷鍵偶發失效」的問題一併修復（全面改用 `osascript` 與剪貼簿貼上機制）。</p>
+<h2>🔄 Brownfield Diff Review</h2>
+<pre><code class="language-diff">
+--- app/services/line_desktop_controller.py
++++ app/services/line_desktop_controller.py
+@@ -63,7 +63,7 @@
+ 
+         # 4. 點選右側聊天室下方的對話輸入框，確保游標在那裡
+         chat_input_x = win_x + (win_w // 2) + 100
+-        chat_input_y = win_y + win_h - 60
++        chat_input_y = win_y + win_h - 100 # 往上移至 -100，避免誤觸下方工具列與陰影
+         logger.info(f"步驟 D: 原生點擊右側對話框輸入區座標 ({chat_input_x}, {chat_input_y})")
+         adapter.native_click(chat_input_x, chat_input_y)
+         time.sleep(0.6)
+</code></pre>
+<h2>User Review Required</h2>
+<p>> [!IMPORTANT]</p>
+<p>> 這個 Bug 真的非常有趣！腳本為了確保萬無一失而去點擊輸入框，結果卻因為 macOS 視窗陰影的計算誤差，不小心點到了工具列，反而把打字游標給弄不見了。</p>
+<p>> 只要我們把滑鼠座標稍微往上挪 40 個像素，就能完美解決這個問題！</p>
+<p>> 如果您同意這個分析，請點選 <strong>Proceed</strong>，我會把這個座標修正，連同前面提到的「中文打字失效」一併修復完成。</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

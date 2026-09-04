@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE Desktop (Mac) 自動化穩定性完整評估報告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>LINE Desktop (Mac) 自動化穩定性完整評估報告</h1>
+<p>根據您的要求，我對目前「依賴滑鼠座標點擊」的自動化方式進行了完整的穩定性評估，並探索了更好的替代方案。</p>
+<h2>1. 目前作法的穩定性評估 (滑鼠座標點擊)</h2>
+<p>目前的腳本是透過 `取得視窗位置與大小 (x, y, w, h)`，再加上固定的偏移量（例如 `win_x + 190`）來決定點擊位置。</p>
+<p><strong>結論：這個方法「非常脆弱」，確實會受到視窗大小與版面變化的嚴重影響。</strong></p>
+<h3>脆弱點分析：</h3>
+<p>1. <strong>內部窗格縮放 (Pane Resizing)</strong>：LINE 的左側（聊天室清單）與右側（對話視窗）之間有一條分隔線是可以左右拖拉的。如果使用者把左側拉寬，原本寫死的 `win_x + 190` (搜尋框位置) 可能就會點偏。</p>
+<p>2. <strong>作業系統陰影與邊界 (OS Shadow/Padding)</strong>：如同早上發生的 Bug，macOS 會將視窗邊緣的透明陰影算進 `win_h` 裡。且不同版本的 macOS 或不同的外接螢幕 (Retina vs 非 Retina)，陰影與縮放比例都可能不同，導致 `win_h - 60` 點到錯誤的工具列。</p>
+<p>3. <strong>介面更新 (UI Updates)</strong>：只要 LINE 稍微改版，增加上方選單的高度或下方工具列的大小，固定的像素偏移量就會立刻失效。</p>
+<p>---</p>
+<h2>2. 探索「更好的辦法」</h2>
+<p>為了解決座標點擊的盲點，我針對 macOS 系統與 LINE App 進行了幾種自動化技術的底層測試：</p>
+<h3>❌ 方案 A：AppleScript 輔助使用 API (UI Scripting)</h3>
+<ul>
+<li><strong>概念</strong>：透過 macOS 原生的 Accessibility API，直接叫系統去點擊「文字輸入框」，這是 Mac 自動化最標準且無敵的做法。</li>
+<li><strong>測試結果</strong>：<strong>失敗</strong>。LINE Desktop 採用了跨平台的 UI 框架（如 Qt/Electron），它<strong>並沒有</strong>把內部的按鈕與輸入框開放給 macOS 系統。在我剛才的背景測試中，系統讀取 LINE 的 UI 元素回傳的是「空清單」。系統就像瞎子一樣，看不到 LINE 裡面的任何按鈕。</li>
+</ul>
+<h3>❌ 方案 B：URL Schemes (深層連結)</h3>
+<ul>
+<li><strong>概念</strong>：使用類似 `line://msg/text/?text=...` 的連結直接喚起特定聊天室。</li>
+<li><strong>測試結果</strong>：<strong>不適用</strong>。LINE 的 URL Scheme 大多需要知道目標的內部 `Room ID`，我們只知道對方的顯示名稱（如 "Sharon Chou"），無法直接透過連結搜尋名字。</li>
+</ul>
+<h3>💡 方案 C：全面改用「全鍵盤操作」+「自動對焦」(Keyboard-Only Navigation) —— **最佳解法**</h3>
+<ul>
+<li><strong>概念</strong>：捨棄滑鼠點擊，全程利用 LINE 的內建快捷鍵與介面邏輯來驅動。這完全無視視窗大小、比例、分隔線位置。</li>
+<li><strong>作法</strong>：</li>
+</ul>
+<p>  1. 腳本打開 LINE 後，按下快捷鍵 `Cmd + 2` 確保切換到「聊天室」分頁。</p>
+<p>  2. 使用快捷鍵 `Cmd + F` (或依賴搜尋框的相對安全區域) 來啟動搜尋。</p>
+<p>  3. <strong>(關鍵)</strong> 透過剪貼簿貼上名字 `Sharon Chou` 後，<strong>直接按下 `Enter` 鍵</strong>！</p>
+<p>  4. LINE 的設計是：在搜尋結果按下 Enter 鍵，會自動開啟該聊天室，並且<strong>「打字游標會自動對焦在底部的輸入框」</strong>！</p>
+<p>  5. 既然游標已經自動對焦，我們<strong>完全不需要去算座標點擊輸入框</strong>（直接砍掉引發今早 Bug 的步驟 D），直接 `Cmd+V` 貼上圖片，再按 `Enter` 即可送出。</p>
+<p>---</p>
+<h2>3. 總結與下一步建議</h2>
+<p>目前的「滑鼠座標法」就像是蒙著眼睛背步數走路，只要桌椅（視窗尺寸）稍微被移動，就會撞牆。</p>
+<p><strong>我建議的「終極改良版」工作流程：</strong></p>
+<p>1. <strong>取消點擊輸入框</strong>：利用 LINE 開啟聊天室後「游標會自動 Focus」的特性，直接刪除點擊底部的危險動作。</p>
+<p>2. <strong>強制剪貼簿輸入</strong>：中文字全部透過「寫入系統剪貼簿 -> `Cmd+V` 貼上」來輸入，避開模擬打字的字元遺失問題。</p>
+<p>這樣一來，不論您把 LINE 視窗拉得多大、多小、左邊多寬、右邊多窄，只要搜尋框還在左上角的大致範圍內，腳本就能 100% 成功發送。</p>
+<p>這份評估報告就提供給您參考！目前我們依舊「按兵不動」，等明天早上觀察 `Sophia Kuo` 的任務狀況後，我們再來決定是否要套用這個終極改良版！</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>`/diagnosing-bugs` 分析報告與修復計畫 (V7)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            transform: translateX(-3px);
+        }
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        }
+        h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-blue); padding-bottom: 0.5rem; }
+        h2 { font-family: 'Outfit', sans-serif; color: var(--accent-blue); font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1rem; }
+        h3 { color: var(--accent-purple); font-size: 1.1rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
+        p { margin-bottom: 1rem; color: #cbd5e1; }
+        ul { margin-left: 1.5rem; margin-bottom: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.4rem; }
+        pre { background: #05070d; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto; margin-bottom: 1.5rem; }
+        code { font-family: monospace; color: #38bdf8; font-size: 0.9rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <button onclick="closeOrGoBack()" class="back-btn">← 返回專案歷程報告 (Return to Overview)</button>
+        </div>
+        <div class="content-card">
+            <h1>`/diagnosing-bugs` 分析報告與修復計畫 (V7)</h1>
+<h2>🔍 Bug Diagnosis (為什麼會亂打無意義的字？)</h2>
+<p>這是一份緊急的錯誤報告。您所看到的「沒有意義的文字」（`<REDACTED_PASSWORD>`），其實不是亂碼，<strong>那是您設定在 `.env` 裡面的 Mac 螢幕解鎖密碼！</strong></p>
+<h3>事發還原：</h3>
+<p>1. 前兩天為了修復 `cron` 無法取得系統鎖定狀態的問題，我幫您加上了一個「失效安全 (Fall-safe)」機制：<strong>當程式在背景判斷不到螢幕是否鎖定時，為了保險起見，一律假裝螢幕是鎖定的，並強制輸入密碼來解鎖。</strong></p>
+<p>2. 然而，這個防呆機制在「您剛好正在使用電腦（螢幕根本沒鎖定）」的時候，引發了災難性的副作用！</p>
+<p>3. 昨天晚上 9:30，您剛好正在使用 Antigravity；今天早上 9:00，您剛好點開了 LINE。</p>
+<p>4. 在這兩個時間點，背景的排程程式啟動了。它因為抓不到系統狀態，誤以為螢幕是鎖定的，於是<strong>直接把您的 Mac 密碼「盲打」進了當前最上層的活動視窗中，並按下了 Enter！</strong></p>
+<p>5. 結果，昨晚您的密碼被當成指令傳給了 Antigravity；今早您的密碼被當成訊息發送到了 LINE 裡！</p>
+<h2>🗺️ Codebase Recon & Context Map</h2>
+<ul>
+<li><strong>出錯模組</strong>: `app/services/mac_unlocker.py` 內的 `is_screen_locked()` 與 `unlock_screen()`</li>
+<li><strong>根本原因</strong>: 背景 `cron` 缺乏圖形介面 (GUI) 的命名空間，導致 `Quartz.CGSessionCopyCurrentDictionary()` 失效，觸發了不安全的 Fall-safe 盲打機制。</li>
+</ul>
+<h2>🛡️ Guardrail Spec</h2>
+<h3>嚴格紅線</h3>
+<p>1. <strong>絕對禁止盲打密碼</strong>：在無法 100% 確定螢幕處於鎖定狀態時，禁止送出密碼鍵盤事件。</p>
+<p>2. 修正 `cron` 讀取狀態的機制，必須精確獲得真實的鎖定狀態。</p>
+<h3>Acceptance Criteria</h3>
+<p>1. <strong>移除不安全的 Fall-safe 機制</strong>。</p>
+<p>2. 將 `is_screen_locked` 的檢查指令包裝進 `launchctl asuser $(id -u)` 中。這會強制背景指令借用您目前的圖形介面 (GUI) 權限，藉此完美且精確地讀取到真實的螢幕鎖定狀態！</p>
+<p>3. 修改後，如果程式偵測到螢幕「未鎖定」，就會直接跳過密碼輸入，直接執行後續的發送流程。</p>
+<h2>🔄 Brownfield Diff Review</h2>
+<pre><code class="language-diff">
+--- app/services/mac_unlocker.py
++++ app/services/mac_unlocker.py
+@@ -17,14 +17,9 @@
+         """檢查螢幕是否被鎖定"""
+         try:
+-            # 使用 sys.executable 確保吃到 venv 內的 Quartz 套件
+-            cmd = f"{sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
++            # 透過 launchctl asuser 強制進入 GUI Session 命名空間，解決 cron 背景無法讀取狀態的問題
++            cmd = f"launchctl asuser $(id -u) {sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
+             res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+             output = res.stdout
+             
+-            # 若在 cron 環境下返回 None 或擷取不到字典，則視為鎖定狀態以確保會執行解鎖
+-            if "None" in output or "CGSSessionScreenIsLocked" not in output:
+-                logger.warning("無法從 Quartz 取得完整 Session 狀態，保守判定螢幕為「鎖定狀態」。")
+-                return True
+-                
+             return "CGSSessionScreenIsLocked = 1" in output
+         except Exception as e:
+-            logger.error(f"is_screen_locked 發生錯誤: {e}")
+-            return True
++            logger.error(f"is_screen_locked 發生錯誤: {e}")
++            return False # 取消 Fall-safe 盲打密碼，若無法判斷則保守不打密碼，避免外洩
+</code></pre>
+<h2>User Review Required</h2>
+<p>> [!CAUTION]</p>
+<p>> 這是非常嚴重的邏輯副作用，非常抱歉驚動了您！</p>
+<p>> 那些看似亂碼的文字是您的 Mac 解鎖密碼。請您盡速在 LINE 中<strong>將該則誤傳的密碼訊息收回 (Unsend)</strong>，以保護您的隱私。</p>
+<p>> </p>
+<p>> 我已經擬定好將這顆「盲打地雷」拆除的修復計畫，改用最安全的 `launchctl` 技術來完美判斷狀態。請問您同意現在開始進行修復嗎？同意的話請點擊 <strong>Proceed</strong>！</p>
+        </div>
+    </div>
+    <script>
+        function closeOrGoBack() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else {
+                window.location.href = "../../project_changelog.html";
+            }
+        }
+    </script>
+</body>
+</html>

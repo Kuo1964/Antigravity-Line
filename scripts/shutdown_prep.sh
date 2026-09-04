@@ -1,6 +1,6 @@
 #!/bin/bash
 # 關機前準備任務 (退場機制)
-LOG_FILE="/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/temp/timeline_test.log"
+LOG_FILE="/Users/johnkuo/worktemp/Antigravity-Line/temp/timeline_test.log"
 echo "=== $(date) [Shutdown] 準備關機退場任務啟動 ===" >> "$LOG_FILE"
 
 # 1. 優雅關閉 LINE

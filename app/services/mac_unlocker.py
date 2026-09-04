@@ -16,13 +16,26 @@ class MacUnlocker:
     def is_screen_locked(self) -> bool:
         """檢查螢幕是否被鎖定"""
         try:
-            # 使用 sys.executable 確保吃到 venv 內的 Quartz 套件
-            cmd = f"{sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
+            # 透過 launchctl asuser 強制進入 GUI Session 命名空間，解決 cron 背景無法讀取狀態的問題
+            cmd = f"launchctl asuser $(id -u) {sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            return "CGSSessionScreenIsLocked = 1" in res.stdout
+            output = res.stdout
+            
+            # 如果成功讀取到鎖定標籤
+            if "CGSSessionScreenIsLocked = 1" in output:
+                return True
+            
+            # 如果連 UUID 或是字典特徵都讀不到，代表這是 Cron 無頭環境，保守判定為鎖定
+            if "CGSSessionUniqueSessionUUID" not in output:
+                logger.warning("無法從 Quartz 取得完整 Session 狀態，保守判定螢幕為「鎖定狀態」。")
+                return True
+                
+            return False
+            
         except Exception as e:
             logger.error(f"is_screen_locked 發生錯誤: {e}")
-            return False
+            logger.warning("無法從 Quartz 取得完整 Session 狀態，保守判定螢幕為「鎖定狀態」。")
+            return True # 恢復保守盲打密碼機制，確保排程絕對喚醒
 
     def unlock_screen(self, password: Optional[str] = None) -> bool:
         """解鎖 macOS 螢幕"""

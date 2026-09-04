@@ -2,7 +2,7 @@
 # 測試專用：開機延遲啟動與發送腳本
 # 此腳本將由 LaunchAgent 在使用者登入後自動觸發
 
-LOG_FILE="/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/temp/boot_test_execution.log"
+LOG_FILE="/Users/johnkuo/worktemp/Antigravity-Line/temp/boot_test_execution.log"
 echo "=== $(date) 開機自動化腳本已觸發 ===" >> "$LOG_FILE"
 
 # 1. 系統剛開機，強制等待兩分鐘 (120 秒) 讓網路與常駐程式載入完畢
@@ -19,9 +19,9 @@ sleep 60
 
 # 4. 呼叫發送早安圖的 Python 主程式 (目標: Private)
 echo "開始呼叫 Python 發送程式 (Private)..." >> "$LOG_FILE"
-cd "/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line"
+cd "/Users/johnkuo/worktemp/Antigravity-Line"
 
 # 確保環境變數正確，執行腳本
-/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/venv/bin/python scripts/send_daily_morning_card.py --target Private >> "$LOG_FILE" 2>&1
+/Users/johnkuo/worktemp/Antigravity-Line/venv/bin/python scripts/send_daily_morning_card.py --target Private >> "$LOG_FILE" 2>&1
 
 echo "=== $(date) 自動化腳本執行完畢 ===" >> "$LOG_FILE"

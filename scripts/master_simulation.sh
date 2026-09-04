@@ -1,7 +1,7 @@
 #!/bin/bash
 # 10 分鐘雙時區自動化主控演練腳本 (V8.1 全自動化版)
 
-LOG_FILE="/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line/temp/timeline_test.log"
+LOG_FILE="/Users/johnkuo/worktemp/Antigravity-Line/temp/timeline_test.log"
 echo "=================================================" >> "$LOG_FILE"
 echo "=== $(date) 主控演練腳本啟動 (自動登入後) ===" >> "$LOG_FILE"
 echo "=================================================" >> "$LOG_FILE"
@@ -18,7 +18,7 @@ sleep 30
 
 # 3. 執行早晨發送任務
 echo ">>> [T=2.5] 執行早晨發送任務 <<<" >> "$LOG_FILE"
-cd "/Users/johnkuo/Library/CloudStorage/GoogleDrive-johnyhkuo@gmail.com/我的雲端硬碟/worktemp/Antigravity-Line"
+cd "/Users/johnkuo/worktemp/Antigravity-Line"
 venv/bin/python scripts/send_daily_morning_card.py --target Private >> "$LOG_FILE" 2>&1
 
 # 4. 強制進入鎖定 (模擬休眠)

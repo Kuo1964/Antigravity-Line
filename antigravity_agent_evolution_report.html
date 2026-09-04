@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 代理進化藍圖：AI 自身精進與實踐指南</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+          },
+          colors: {
+            agent: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            cyanAccent: {
+              400: '#22d3ee',
+              500: '#06b6d4',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #080c14;
+      color: #f3f4f6;
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-panel-glow {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      box-shadow: 0 0 30px rgba(34, 211, 238, 0.08);
+    }
+    .tab-active {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.2) 0%, rgba(99, 102, 241, 0.25) 100%);
+      border-color: #22d3ee;
+      color: #ffffff;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #080c14; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <i class="fa-solid fa-robot text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+            Antigravity Agent Evolution Blueprint
+            <span class="text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full font-mono">Agent Self-Review</span>
+          </h1>
+          <p class="text-xs text-gray-400">AI 代理自身短板復盤、能力升級路徑與落地實踐方案</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-2 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 text-xs md:text-sm font-medium">
+        <button onclick="switchTab('radar')" id="btn-radar" class="tab-btn px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white tab-active">
+          <i class="fa-solid fa-chart-radar mr-1.5"></i> 能力診斷雷達
+        </button>
+        <button onclick="switchTab('blindspots')" id="btn-blindspots" class="tab-btn px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white">
+          <i class="fa-solid fa-eye-slash mr-1.5"></i> 代理五大短板
+        </button>
+        <button onclick="switchTab('actionable')" id="btn-actionable" class="tab-btn px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white">
+          <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> 具體精進做法
+        </button>
+        <button onclick="switchTab('templates')" id="btn-templates" class="tab-btn px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white">
+          <i class="fa-solid fa-code mr-1.5"></i> 實體代碼範本庫
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-8">
+
+    <!-- ==================== TAB 1: 能力診斷雷達 (RADAR) ==================== -->
+    <section id="tab-radar" class="tab-content space-y-8">
+      <div class="glass-panel p-6 rounded-2xl border-l-4 border-cyan-400">
+        <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-microchip text-cyan-400"></i> AI 代理表現自我審視 (Self-Critique Summary)
+        </h2>
+        <p class="text-sm text-gray-300 leading-relaxed">
+          回顧這 16 個 Session，Antigravity 在「代碼編寫、架構遵守與單元測試」方面表現出色；然而在「<strong>運行態感知、主動端到端自我閉環、跨對話記憶與協同果斷度</strong>」上存在明顯的改進空間。
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Radar Chart -->
+        <div class="glass-panel p-6 rounded-2xl flex flex-col items-center justify-center">
+          <h3 class="text-sm font-bold text-white mb-4 self-start flex items-center gap-2">
+            <i class="fa-solid fa-compass-drafting text-indigo-400"></i> 代理能力六維成熟度評估
+          </h3>
+          <div class="w-full h-64 relative flex items-center justify-center">
+            <canvas id="agentRadarChart"></canvas>
+          </div>
+          <div class="flex items-center justify-center gap-4 mt-3 text-xs font-mono">
+            <span class="flex items-center gap-1.5 text-rose-400"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span> 現況表現</span>
+            <span class="flex items-center gap-1.5 text-cyan-400"><span class="w-2.5 h-2.5 bg-cyan-400 rounded-full"></span> 精進後目標</span>
+          </div>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="glass-panel p-5 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-mono text-cyan-400 font-semibold">DIMENSION 01</span>
+              <span class="text-emerald-400 text-xs font-bold font-mono">92 / 100</span>
+            </div>
+            <h4 class="text-sm font-bold text-white mt-1">代碼生成與架構規範遵循</h4>
+            <p class="text-xs text-gray-400 mt-1">能精確遵循繁體中文註解、Type Hints 與模組隔離規範，單元測試覆蓋完整。</p>
+          </div>
+
+          <div class="glass-panel p-5 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-mono text-rose-400 font-semibold">DIMENSION 02 (需精進)</span>
+              <span class="text-rose-400 text-xs font-bold font-mono">45 / 100</span>
+            </div>
+            <h4 class="text-sm font-bold text-white mt-1">主動端到端 (E2E) 模擬驗收</h4>
+            <p class="text-xs text-gray-400 mt-1">過度依賴「叫使用者用手機在 LINE 上盲測」，缺乏在沙盒內自動發送 Webhook 模擬流量自檢。</p>
+          </div>
+
+          <div class="glass-panel p-5 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-mono text-amber-400 font-semibold">DIMENSION 03 (需精進)</span>
+              <span class="text-amber-400 text-xs font-bold font-mono">55 / 100</span>
+            </div>
+            <h4 class="text-sm font-bold text-white mt-1">運行態與環境感知能力</h4>
+            <p class="text-xs text-gray-400 mt-1">重啟服務時未主動確認 Port 8000 殘留進程與 ngrok 狀態，常等報錯後才手忙腳亂去查 ps/lsof。</p>
+          </div>
+
+          <div class="glass-panel p-5 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-mono text-rose-400 font-semibold">DIMENSION 04 (需精進)</span>
+              <span class="text-rose-400 text-xs font-bold font-mono">40 / 100</span>
+            </div>
+            <h4 class="text-sm font-bold text-white mt-1">跨 Session 經驗與記憶延續</h4>
+            <p class="text-xs text-gray-400 mt-1">新開對話時容易忘記前次解決過的 Google Drive 延遲掛載教訓與早安圖保護邊界，造成重複溝通。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 五大盲點 (BLINDSPOTS) ==================== -->
+    <section id="tab-blindspots" class="tab-content hidden space-y-6">
+      <div class="glass-panel p-6 rounded-2xl">
+        <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-magnifying-glass-chart text-rose-400"></i> Antigravity 代理在專案中的 5 大核心短板
+        </h2>
+        <p class="text-sm text-gray-400">以下為 Agent 自身在過去 16 個 Session 中暴露的最具破壞力、也是最浪費使用者時間的行為盲點：</p>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Blindspot 1 -->
+        <div class="glass-panel p-5 rounded-2xl border-l-4 border-rose-500 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 bg-rose-500/20 text-rose-300 font-mono text-xs rounded">短板 1</span>
+              「被動依賴人類手機測試」而非「主動沙盒 Mock E2E 驗證」
+            </h3>
+            <span class="text-xs text-rose-400 font-mono"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 最耗時元凶</span>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            <strong>盲點現象：</strong> Agent 寫好代碼後常直接宣稱「已修復完成，請您在 LINE 上發送訊息測試」。當使用者拿起手機發送後發現完全沒反應（卡住或 ngrok 斷線），使用者被迫回報「我發送了但沒動作」，浪費大量來回。<br>
+            <strong>根本原因：</strong> Agent 把「單元測試綠燈」等同於「全鏈路正常」，沒有在交卷前自主執行 <code>curl -X POST /callback -d '{"events":[...]}'</code> 來檢驗真實的 LINE 回應與輸出。
+          </p>
+        </div>
+
+        <!-- Blindspot 2 -->
+        <div class="glass-panel p-5 rounded-2xl border-l-4 border-amber-500 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 font-mono text-xs rounded">短板 2</span>
+              運行態環境感知遲鈍 (Runtime Context Blindness)
+            </h3>
+            <span class="text-xs text-amber-400 font-mono">Session 12 核心痛點</span>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            <strong>盲點現象：</strong> 在執行 <code>./start.sh</code> 或重啟 FastAPI 前，Agent 未主動檢查舊的進程是否殘留或端口 8000 是否被佔用，導致服務看似跑起來但實際處於崩潰或衝突狀態。<br>
+            <strong>根本原因：</strong> 缺乏 Pre-flight (前置環境檢查) 與 Post-flight (後置存活確認) 意識，習慣盲目執行啟動腳本。
+          </p>
+        </div>
+
+        <!-- Blindspot 3 -->
+        <div class="glass-panel p-5 rounded-2xl border-l-4 border-indigo-500 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 font-mono text-xs rounded">短板 3</span>
+              Subagent 派工時的「契約割裂與整合驗收缺失」
+            </h3>
+            <span class="text-xs text-indigo-400 font-mono">Tickets 開發階段</span>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            <strong>盲點現象：</strong> 主 Agent 啟動 Subagent 平行執行 TICKET-001 與 TICKET-003，Subagent 在隔離環境跑完各自的 unit test 綠燈回報。但主 Agent 在合併代碼後，<strong>沒有立刻跑整合測試 (Integration Test)</strong>，直接交卷給使用者，導致上線即破裂。<br>
+            <strong>根本原因：</strong> 缺乏「主代理驗收責任制 (Master Agent Acceptance Contract)」。
+          </p>
+        </div>
+
+        <!-- Blindspot 4 -->
+        <div class="glass-panel p-5 rounded-2xl border-l-4 border-cyan-500 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 font-mono text-xs rounded">短板 4</span>
+              微步確認造成的「分析癱瘓 (Analysis Paralysis)」
+            </h3>
+            <span class="text-xs text-cyan-400 font-mono">100 輪對話膨脹</span>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            <strong>盲點現象：</strong> Agent 常為了極小的非破壞性操作（例如讀取一個日誌或列出目錄）停下來輸出長篇 plan 等待使用者核准，過度消耗了使用者的專注力。<br>
+            <strong>根本原因：</strong> Agent 未能區分「破壞性操作（需人類授權）」與「探索/沙盒測試（應果斷自主推進）」。
+          </p>
+        </div>
+
+        <!-- Blindspot 5 -->
+        <div class="glass-panel p-5 rounded-2xl border-l-4 border-purple-500 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 font-mono text-xs rounded">短板 5</span>
+              跨 Session 記憶衰退 (Memory Decay)
+            </h3>
+            <span class="text-xs text-purple-400 font-mono">跨天對話遺忘</span>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            <strong>盲點現象：</strong> 每次換一個新的 Session，Agent 常需要使用者重新提醒「不能動到早安圖」、「Google Drive 掛載有延遲」等專案硬性約束。<br>
+            <strong>根本原因：</strong> 缺乏常駐的專案記憶機制（如 <code>AGENT_MEMORY.md</code> 或嚴格的本地 Rule），導致知識隨 Session 結束而丟失。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: 具體精進做法 (ACTIONABLE) ==================== -->
+    <section id="tab-actionable" class="tab-content hidden space-y-8">
+      <div class="glass-panel p-6 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-slate-900 to-indigo-950/30">
+        <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-forward-fast text-cyan-400"></i> AI 代理四大實踐改造方案 (Architecture Upgrades)
+        </h2>
+        <p class="text-sm text-gray-300">
+          針對上述 5 大短板，以下是具體落地的工程化改造方案，徹底解放使用者的人力：
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Solution 1 -->
+        <div class="glass-panel p-6 rounded-2xl space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center text-lg font-bold">
+              <i class="fa-solid fa-vial-circle-check"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">方案一：主動式 E2E Mock Webhook 驗證腳本</h3>
+              <p class="text-xs text-gray-400">徹底告別「人類手機盲測」</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            在 <code>tests/mock_line_webhook.py</code> 建立模擬發送腳本。Agent 在修改完任何 LINE 相關程式碼後，<strong>強制自動發送連續兩輪測試 Payload</strong>（包含單行指令、多專案切換、超過 2000 字訊息），確認 FastAPI 回應 200 OK 且輸出符合預期後才回報使用者。
+          </p>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-cyan-300">
+            $ python -m tests.mock_line_webhook --simulate-multi-turn
+          </div>
+        </div>
+
+        <!-- Solution 2 -->
+        <div class="glass-panel p-6 rounded-2xl space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg font-bold">
+              <i class="fa-solid fa-life-ring"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">方案二：前置/後置運行態守護 (Pre/Post-Flight Hooks)</h3>
+              <p class="text-xs text-gray-400">消除端口佔用與死循環</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Agent 在調用 <code>run_command</code> 啟動服務前，自動觸發「清理守護」：
+            <br>1. 檢查 8000 端口佔用 ➜ 自動終止舊進程。
+            <br>2. 啟動後輪詢 <code>http://127.0.0.1:8000/docs</code> 驗證服務存活。
+            <br>3. 檢查 ngrok API 確保 Public URL 已更新。
+          </p>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-amber-300">
+            $ ./doctor.sh --fix-stale-ports
+          </div>
+        </div>
+
+        <!-- Solution 3 -->
+        <div class="glass-panel p-6 rounded-2xl space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg font-bold">
+              <i class="fa-solid fa-handshake-simple"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">方案三：Subagent 派工契約與主代理整合驗收制</h3>
+              <p class="text-xs text-gray-400">杜絕整合即崩潰</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            派發 Ticket 給 Subagent 時，強制要求附帶「介面契約 (Interface Contract)」，Subagent 完成後主 Agent 必須在 Workspace 自動執行 <code>pytest tests/test_integration.py</code>，確保雙軌切換與 Markdown 轉譯在整合成品中無縫協同。
+          </p>
+        </div>
+
+        <!-- Solution 4 -->
+        <div class="glass-panel p-6 rounded-2xl space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg font-bold">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">方案四：專案長期記憶庫 (AGENT_MEMORY.md)</h3>
+              <p class="text-xs text-gray-400">跨 Session 經驗零衰退</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            建立 <code>AGENT_MEMORY.md</code>，記錄專案所有的「踩坑禁區 (Forbidden Zones)」與「已驗證的最佳架構決策 (Known Decisions)」。任何新開啟的 Session，Agent 啟動時自動載入此記憶庫，絕不重蹈覆轍。
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: 代碼範本庫 (TEMPLATES) ==================== -->
+    <section id="tab-templates" class="tab-content hidden space-y-6">
+      <div class="glass-panel p-6 rounded-2xl">
+        <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-code text-cyan-400"></i> 開箱即用的 Agent 精進代碼與設定範本
+        </h2>
+        <p class="text-sm text-gray-400">以下代碼可直接加入本專案，立即可大幅提升 Agent 的自癒與端到端自檢能力：</p>
+      </div>
+
+      <!-- Template 1: Mock Webhook Script -->
+      <div class="glass-panel p-6 rounded-2xl space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span class="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-mono">Template 01</span>
+            主動式 Mock LINE Webhook 測試器 (`tests/mock_webhook.py`)
+          </h3>
+          <span class="text-xs text-gray-400 font-mono">可用於 Agent 自動自檢</span>
+        </div>
+        <pre class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-cyan-200 overflow-x-auto"><code># tests/mock_webhook.py
+import urllib.request
+import json
+
+def simulate_line_message(user_id="U_TEST_USER", text="你好，請幫我列出專案"):
+    url = "http://127.0.0.1:8000/callback"
+    payload = {
+        "events": [{
+            "type": "message",
+            "replyToken": "mock_reply_token",
+            "source": {"userId": user_id, "type": "user"},
+            "message": {"id": "10001", "type": "text", "text": text}
+        }]
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Line-Signature": "MOCK_SIG"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            print(f"[✓ Mock Webhook] 發送成功: {text} -> HTTP {resp.status}")
+            return True
+    except Exception as e:
+        print(f"[✗ Mock Webhook] 發送失敗: {e}")
+        return False
+
+if __name__ == "__main__":
+    simulate_line_message(text="查詢目前專案狀態")
+    simulate_line_message(text="切換至專案 Antigravity-Line")
+</code></pre>
+      </div>
+
+      <!-- Template 2: Agent Memory Spec -->
+      <div class="glass-panel p-6 rounded-2xl space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">Template 02</span>
+            專案長期記憶庫範本 (`AGENT_MEMORY.md`)
+          </h3>
+          <span class="text-xs text-gray-400 font-mono">跨 Session 載入</span>
+        </div>
+        <pre class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-indigo-200 overflow-x-auto"><code># AGENT_MEMORY.md (專案禁區與硬性決策)
+
+## 🛑 禁區清單 (Forbidden Zones - 嚴禁擅自修改)
+1. **早安圖派發模組**：獨立於主控制流程，嚴禁修改其排程與圖片生成邏輯。
+2. **Google Drive 路徑硬編碼**：工作目錄依賴 CloudStorage，嚴禁寫入非專案內的本機暫存路徑。
+
+## 💡 已驗證的最佳決策 (Validated Architecture Decisions)
+1. **雙軌專案切換**：`AgentSessionEngine` 必須同時支援「狀態鎖定」與「語意判斷」。
+2. **LINE 字數分段**：單則超過 2000 字元必須調用 `format_markdown_for_line` 自動分段發送。
+3. **開關機時序**：關機前 5 分鐘優雅釋放端口；開機後守護進程等待磁碟掛載最長 10 分鐘。
+</code></pre>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/60 py-6 text-center text-xs text-gray-500 font-mono">
+    Antigravity AI Agent Self-Evolution Report • Built for Continuous Mastery
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('tab-active'));
+      const targetContent = document.getElementById('tab-' + tabId);
+      const targetBtn = document.getElementById('btn-' + tabId);
+      if (targetContent) targetContent.classList.remove('hidden');
+      if (targetBtn) targetBtn.classList.add('tab-active');
+    }
+
+    // Chart
+    window.addEventListener('DOMContentLoaded', () => {
+      const ctx = document.getElementById('agentRadarChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: [
+            '代碼生成規範',
+            '沙盒 E2E 自驗',
+            '運行態感知',
+            '跨對話記憶',
+            'Subagent 整合',
+            '自治決策果斷度'
+          ],
+          datasets: [
+            {
+              label: '現況表現',
+              data: [92, 45, 55, 40, 60, 50],
+              fill: true,
+              backgroundColor: 'rgba(244, 63, 94, 0.2)',
+              borderColor: '#f43f5e',
+              pointBackgroundColor: '#f43f5e',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: '#f43f5e'
+            },
+            {
+              label: '精進後目標',
+              data: [95, 95, 90, 90, 95, 90],
+              fill: true,
+              backgroundColor: 'rgba(34, 211, 238, 0.2)',
+              borderColor: '#22d3ee',
+              pointBackgroundColor: '#22d3ee',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: '#22d3ee'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          elements: { line: { borderWidth: 2 } },
+          scales: {
+            r: {
+              angleLines: { color: '#1e293b' },
+              grid: { color: '#1e293b' },
+              pointLabels: {
+                color: '#94a3b8',
+                font: { size: 10, family: 'Inter' }
+              },
+              ticks: { display: false, min: 0, max: 100 }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

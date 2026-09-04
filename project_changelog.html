@@ -386,7 +386,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">最後更新時間</span>
-                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-13 23:31</span>
+                    <span class="stat-value" id="last-updated" style="font-size: 1rem;">2026-08-20 10:04</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">架構報告版本</span>
@@ -404,6 +404,86 @@
         </div>
 
         <main class="timeline" id="timeline-container">
+
+            <article class="timeline-item" data-type="feat">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-feat">✨ FEAT</span>
+                            <h2 class="card-title">實裝 V8 終極防護：全鍵盤導航與爬蟲驗證</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-20 10:04</span>
+                            <span class="timestamp-utc">2026-08-20 02:04 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">於 safe-guardrail-v8 分支中完成無副作用測試。全面導入 line:// 強制喚醒、純鍵盤操作流 (Cmd+2, Cmd+F, Cmd+V)，並補齊爬蟲 Content-Type 驗證與 Unsplash 備援機制。</p>
+                    <ul class="details-list"><li>重構 line_desktop_controller 放棄座標點擊</li><li>增強 image_crawler.py 自動防禦假圖與超時</li><li>新增 macos_ui_adapter 剪貼簿貼上功能解決吃字問題</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260820_100401.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260820_100401.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">修復重大隱私漏洞：背景排程盲打密碼外洩</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-19 09:59</span>
+                            <span class="timestamp-utc">2026-08-19 01:59 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">徹底移除先前加入的防呆盲打密碼機制，改用 launchctl asuser 使 cron 精準偵測 GUI 鎖定狀態，防止密碼誤觸發送到當前活動視窗。</p>
+                    <ul class="details-list"><li>移除 mac_unlocker.py 中的危險 Fall-safe</li><li>導入 launchctl asuser 取得真實 Quartz 狀態</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260819_095927.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260819_095927.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="docs">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-docs">📝 DOCS</span>
+                            <h2 class="card-title">分析診斷 LINE 中文搜尋失敗與貼上錯誤</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-18 13:51</span>
+                            <span class="timestamp-utc">2026-08-18 05:51 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">深度診斷 LINE 發送圖片失敗的多重原因（中文輸入攔截、假圖下載、座標偏移），並完成後續改良的技術評估報告。</p>
+                    <ul class="details-list"><li>確認 21:30 任務失敗原因為 keystroke 在中文環境失效</li><li>抓出 09:00 任務失敗原因為爬蟲下載到非圖片內容與滑鼠點擊工具列導致失焦</li><li>完成 LINE Desktop 自動化最佳實踐評估報告 (research_notes)</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260818_135126.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a></div>
+                </div>
+            </article>
+
+
+            <article class="timeline-item" data-type="fix">
+                <div class="timeline-dot"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="badge badge-fix">🐛 FIX</span>
+                            <h2 class="card-title">修復 cron 排程下的螢幕鎖定偵測 (Fall-safe)</h2>
+                        </div>
+                        <div class="timestamp-group">
+                            <span class="timestamp-local">2026-08-18 13:51</span>
+                            <span class="timestamp-utc">2026-08-18 05:51 UTC</span>
+                        </div>
+                    </div>
+                    <p class="card-desc">解決了背景 cron 執行時無法正確獲取 macOS 圖形介面鎖定狀態的問題，加入 Fall-safe 機制強制輸入密碼，確保自動排程必定解鎖螢幕。</p>
+                    <ul class="details-list"><li>修改 mac_unlocker.py，加入空值防護與例外處理</li><li>分析並確認 AppleScript 報錯 (-1719) 之根本原因</li></ul>
+                    <div class="links-group"><a href="docs/plans/plan_20260818_135113.html" class="doc-link doc-link-plan">📄 查看 Implementation Plan</a><a href="docs/walkthroughs/walkthrough_20260818_135113.html" class="doc-link doc-link-walkthrough">🧪 查看 Walkthrough 測試紀錄</a></div>
+                </div>
+            </article>
+
 
             <article class="timeline-item" data-type="fix">
                 <div class="timeline-dot"></div>
