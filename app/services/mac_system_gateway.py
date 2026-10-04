@@ -41,11 +41,10 @@ class MacSystemGateway:
             return False
 
     def restore_display_state(self, initial_state: str = "UNLOCKED") -> bool:
-        """深層公開主介面：復原之前的螢幕與電源狀態"""
+        """深層公開主介面：發送完成後維持螢幕喚醒與就緒狀態 (已去除自動鎖定)"""
         try:
             self._ui_adapter.restore_screen_state()
-            if initial_state == "LOCKED":
-                return self._unlocker.lock_screen()
+            logger.info("早安圖發送流程結束，保持 macOS 螢幕就緒開啟狀態。")
             return True
         except Exception as e:
             logger.error(f"復原 macOS 螢幕狀態失敗: {e}")

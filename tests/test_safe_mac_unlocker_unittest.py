@@ -65,5 +65,18 @@ class TestSafeMacUnlocker(unittest.TestCase):
         with patch("subprocess.run", side_effect=Exception("Quartz error")):
             self.assertFalse(self.unlocker.is_screen_locked())
 
+    def test_lock_screen_keeps_screen_on_without_sleep(self):
+        """測試 6：驗證發送完成後的 lock_screen 保持螢幕開啟，絕不調用 pmset displaysleepnow"""
+        with patch("subprocess.run") as mock_run:
+            res = self.unlocker.lock_screen()
+            self.assertTrue(res)
+            # 確保絕無調用 pmset displaysleepnow
+            for call_args in mock_run.call_args_list:
+                cmd = call_args[0][0]
+                if isinstance(cmd, list):
+                    self.assertNotIn("displaysleepnow", cmd)
+                elif isinstance(cmd, str):
+                    self.assertNotIn("displaysleepnow", cmd)
+
 if __name__ == "__main__":
     unittest.main()

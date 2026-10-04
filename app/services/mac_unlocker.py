@@ -15,6 +15,11 @@ class MacUnlocker:
 
     # 允許模擬鍵盤輸入密碼的前台行程白名單 (僅限 macOS 系統登入與螢幕保護程式)
     ALLOWED_UNLOCK_PROCESSES = {"loginwindow", "screensaverengine"}
+    # 絕對嚴禁輸入密碼的前台行程黑名單 (包含常見應用程式，雙重熔斷防護)
+    FORBIDDEN_UNLOCK_PROCESSES = {
+        "line", "finder", "google chrome", "chrome", "safari",
+        "antigravity", "terminal", "iterm2", "code", "cursor", "slack"
+    }
 
     def get_frontmost_app_name(self) -> Optional[str]:
         """取得當前最上層活動中的應用程式名稱 (優先使用 Cocoa AppKit，備援 AppleScript)"""
@@ -62,7 +67,7 @@ class MacUnlocker:
             return False
 
     def unlock_screen(self, password: Optional[str] = None) -> bool:
-        """安全解鎖 macOS 螢幕 (嚴格 Fail-Closed 防盲打防護)"""
+        """安全解鎖 macOS 螢幕 (嚴格 Fail-Closed 與黑白名單雙重防護)"""
         logger.info("發送喚醒訊號 (caffeinate)...")
         subprocess.run(["caffeinate", "-u", "-t", "3"], check=False)
         time.sleep(1.0)
@@ -76,12 +81,19 @@ class MacUnlocker:
             logger.warning("螢幕處於鎖定狀態但未提供 MAC_PASSWORD，僅發送螢幕喚醒指令。")
             return False
 
-        # 2. 第二道防線：前台焦點程式白名單檢查 (核心 Fail-Closed 防線)
+        # 2. 第二道防線：前台焦點程式黑白名單雙重檢查
         front_app = self.get_frontmost_app_name()
         logger.info(f"檢測當前最上層前台程式為: [{front_app}]")
         
+        # 🚨 黑名單即時攔截：如果前台是 LINE / Finder 等常用軟體，立刻熔斷
+        if front_app and front_app.lower() in self.FORBIDDEN_UNLOCK_PROCESSES:
+            logger.critical(
+                f"🚨 [黑名單熔斷攔截] 當前前台應用程式為 '{front_app}'，嚴禁在一般應用程式畫面輸入密碼！"
+            )
+            return False
+
         # 🚨 嚴格 Fail-Closed 規則：
-        # 只要前台程式為 None (無法判定) 或非登入程式 (例如 Finder, LINE, Chrome)，一律絕對禁止輸入密碼！
+        # 只要前台程式為 None (無法判定) 或非登入程式 (loginwindow / screensaverengine)，一律絕對禁止輸入密碼！
         if not front_app or front_app.lower() not in self.ALLOWED_UNLOCK_PROCESSES:
             logger.critical(
                 f"🚨 [安全防護攔截] 當前前台應用程式為 '{front_app}'，非系統登入畫面 (loginwindow)！"
@@ -122,15 +134,9 @@ class MacUnlocker:
         return not self.is_screen_locked()
         
     def lock_screen(self) -> bool:
-        """重新鎖定螢幕"""
-        try:
-            time.sleep(1.0)
-            subprocess.run(["pmset", "displaysleepnow"], check=False)
-            logger.info("已成功恢復發送前狀態：Mac 顯示器已重新睡眠並鎖定 🔐")
-            return True
-        except Exception as e:
-            logger.error(f"恢復螢幕睡眠鎖定失敗: {e}")
-            return False
+        """保持螢幕開啟狀態 (已去除發送完成後的螢幕鎖定)"""
+        logger.info("發送早安圖後保持螢幕就緒開啟狀態，不再重新鎖定螢幕 🌟")
+        return True
 
 mac_unlocker = MacUnlocker()
 
@@ -142,7 +148,6 @@ def detect_mac_screen_state() -> str:
     return "UNLOCKED" if not mac_unlocker.is_screen_locked() else "LOCKED"
 
 def restore_mac_screen_state(state: str) -> bool:
-    if state == "LOCKED":
-        return mac_unlocker.lock_screen()
+    # 已依需求全面去除發送後的鎖定行為
     return True
 
