@@ -224,28 +224,41 @@ class AgentSessionEngine:
                 logger.warning("Gemini 2.5 Flash 生成超時 (25s)，自動進行簡化備用呼叫...")
                 from google import genai
                 client = genai.Client(api_key=api_key)
-                response = await asyncio.to_thread(
-                    client.models.generate_content,
-                    model='gemini-2.5-flash',
-                    contents=full_prompt,
-                    config=None
-                )
-                reply_text = response.text.strip()
-                session["history"].append({"user": target_prompt, "agent": reply_text})
-                session_store.save_session(user_id, session)
-                return reply_text
+                try:
+                    response = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            client.models.generate_content,
+                            model='gemini-2.5-flash',
+                            contents=full_prompt,
+                            config=None
+                        ),
+                        timeout=20.0
+                    )
+                    reply_text = response.text.strip()
+                    session["history"].append({"user": target_prompt, "agent": reply_text})
+                    session_store.save_session(user_id, session)
+                    return reply_text
+                except Exception as fallback_err:
+                    logger.error(f"簡化備用呼叫失敗或逾時: {fallback_err}")
+                    return f"⚠️ 抱歉，AI 服務回應逾時，請稍候重試或精簡提問內容。"
 
             except Exception as genai_err:
                 logger.warning(f"Google GenAI SDK 調用失敗 ({genai_err})，嘗試備用處理...")
-                import google.generativeai as legacy_genai
-                legacy_genai.configure(api_key=api_key)
-                model = legacy_genai.GenerativeModel('gemini-1.5-flash')
-                response = await asyncio.to_thread(model.generate_content, full_prompt)
-
-                reply_text = response.text.strip()
-                session["history"].append({"user": target_prompt, "agent": reply_text})
-                session_store.save_session(user_id, session)
-                return reply_text
+                try:
+                    import google.generativeai as legacy_genai
+                    legacy_genai.configure(api_key=api_key)
+                    model = legacy_genai.GenerativeModel('gemini-1.5-flash')
+                    response = await asyncio.wait_for(
+                        asyncio.to_thread(model.generate_content, full_prompt),
+                        timeout=20.0
+                    )
+                    reply_text = response.text.strip()
+                    session["history"].append({"user": target_prompt, "agent": reply_text})
+                    session_store.save_session(user_id, session)
+                    return reply_text
+                except Exception as legacy_err:
+                    logger.error(f"舊版 GenAI SDK 調用失敗: {legacy_err}")
+                    return f"❌ AI 服務連線失敗：{str(legacy_err)}"
 
         except Exception as err:
             logger.error(f"AgentSessionEngine 處理過程發生錯誤: {err}")

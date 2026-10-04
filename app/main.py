@@ -62,7 +62,7 @@ async def process_background_agent_task(user_id: str, user_text: str):
             while True:
                 await asyncio.sleep(15)
                 execution_tracer.log_event("HEARTBEAT_TRIGGERED", {"user_id": user_id})
-                line_delivery_adapter.deliver_text(user_id, "⏳ Agent 仍在執行中，請稍候...")
+                await line_delivery_adapter.deliver_text_async(user_id, "⏳ Agent 仍在執行中，請稍候...")
         except asyncio.CancelledError:
             pass
 
@@ -81,16 +81,17 @@ async def process_background_agent_task(user_id: str, user_text: str):
             "result_preview": result_text[:150] if result_text else ""
         })
 
-        line_delivery_adapter.deliver_text(user_id, result_text)
+        # 顯式等待非同步推播完成，確保訊息百分之百送達 LINE API 再結束任務
+        await line_delivery_adapter.deliver_text_async(user_id, result_text)
 
     except asyncio.TimeoutError:
         execution_tracer.log_event("AGENT_TASK_TIMEOUT", {"user_id": user_id, "timeout": 90.0})
         logger.error(f"背景 Agent 任務超時 (90s): User {user_id}")
-        line_delivery_adapter.deliver_text(user_id, "⚠️ 任務執行耗時過長已超時降級，請重新發送或嘗試縮短指令內容。")
+        await line_delivery_adapter.deliver_text_async(user_id, "⚠️ 任務執行耗時過長已超時降級，請重新發送或嘗試縮短指令內容。")
     except Exception as e:
         execution_tracer.log_event("AGENT_TASK_EXCEPTION", {"user_id": user_id, "error": str(e)})
         logger.error(f"背景 Agent 任務執行發生異常: {e}")
-        line_delivery_adapter.deliver_text(user_id, f"❌ Agent 執行發生錯誤: {e}")
+        await line_delivery_adapter.deliver_text_async(user_id, f"❌ Agent 執行發生錯誤: {e}")
     finally:
         heartbeat_task.cancel()
         try:
