@@ -7,23 +7,29 @@ logger = logging.getLogger(__name__)
 
 def focus_line_app(adapter: MacOSUIAdapter) -> bool:
     """
-    開啟、還原並聚焦 macOS 版 LINE 桌面應用程式
+    開啟、還原並聚焦 macOS 版 LINE 桌面應用程式 (溫和喚醒，不強殺進程)
     """
     logger.info("正在喚醒並聚焦 LINE 桌面版...")
     try:
         import subprocess
-        # 1. 為了確保徹底清除睡眠模式與幕前調度的幽靈視窗 Bug，強制關閉並重啟
-        logger.info("正在強制關閉 LINE (killall) 以重置視窗狀態...")
-        subprocess.run(["killall", "-9", "LINE"], check=False)
-        time.sleep(3.0)
-        
-        logger.info("正在重新啟動 LINE...")
+        # 1. 確保應用程式啟動 (open -a LINE 是冪等的，若已啟動則直接喚起)
         subprocess.run(["open", "-a", "LINE"], check=False)
-        # 給予充足等待時間讓主視窗完成渲染
-        time.sleep(8.0)
+        time.sleep(1.0)
         
-        # 2. 輔助聚焦與確保在最上層
-        adapter.reopen_app("LINE")
+        # 2. 透過 AppleScript 執行 activate 與 reopen，確保主視窗展開至前台
+        script = '''
+        tell application "LINE"
+            activate
+            reopen
+        end tell
+        tell application "System Events"
+            tell process "LINE"
+                set frontmost to true
+            end tell
+        end tell
+        '''
+        adapter.execute_applescript(script)
+        time.sleep(1.5)
         return True
     except Exception as e:
         logger.error(f"聚焦 LINE App 異常: {e}")

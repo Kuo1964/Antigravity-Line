@@ -115,6 +115,11 @@ class MacOSUIAdapter:
         '''
         for attempt in range(1, retries + 1):
             try:
+                # 若前幾次未取到，主動重新喚起應用程式主視窗
+                if attempt in (3, 6):
+                    logger.info(f"再次嘗試透過 reopen_app 彈出 {app_name} 主視窗...")
+                    self.reopen_app(app_name)
+                    
                 res = self.execute_applescript(script)
                 if res.returncode == 0 and res.stdout.strip():
                     numbers = re.findall(r'-?\d+', res.stdout)
