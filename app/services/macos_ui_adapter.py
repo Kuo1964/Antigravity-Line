@@ -102,8 +102,33 @@ class MacOSUIAdapter:
         self.execute_applescript(script)
         time.sleep(0.5)
 
-    def get_window_bounds(self, app_name: str, retries: int = 10, delay: float = 1.0) -> tuple[int, int, int, int]:
-        """取得目標應用程式主視窗的絕對座標與尺寸 (內建重試機制)"""
+    def get_window_bounds(self, app_name: str, retries: int = 5, delay: float = 1.0) -> tuple[int, int, int, int]:
+        """
+        取得目標應用程式主視窗的絕對座標與尺寸 (CoreGraphics 原生優先架構)
+        :param app_name: 應用程式名稱 (例如 'LINE')
+        :return: (x, y, w, h)
+        """
+        # 1. 第一優先：透過 macOS CoreGraphics (Quartz) 原生 C-API 查詢 (超快速、零權限阻礙)
+        try:
+            import Quartz
+            window_list = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionAll, Quartz.kCGNullWindowID)
+            for win in window_list:
+                owner = str(win.get("kCGWindowOwnerName", ""))
+                if owner.lower() == app_name.lower():
+                    bounds = win.get("kCGWindowBounds", {})
+                    layer = win.get("kCGWindowLayer", 0)
+                    w = int(bounds.get("Width", 0))
+                    h = int(bounds.get("Height", 0))
+                    x = int(bounds.get("X", 0))
+                    y = int(bounds.get("Y", 0))
+                    # 篩選主視窗 (Layer 為 0 且寬高大於 300)
+                    if layer == 0 and w >= 300 and h >= 300:
+                        logger.info(f"✨ 成功透過 CoreGraphics 原生取得 {app_name} 視窗座標: x={x}, y={y}, w={w}, h={h}")
+                        return x, y, w, h
+        except Exception as e:
+            logger.warning(f"CoreGraphics 原生獲取視窗座標異常: {e}")
+
+        # 2. 第二備援：AppleScript System Events 輪詢
         script = f'''
         tell application "System Events"
             tell process "{app_name}"
@@ -115,8 +140,7 @@ class MacOSUIAdapter:
         '''
         for attempt in range(1, retries + 1):
             try:
-                # 若前幾次未取到，主動重新喚起應用程式主視窗
-                if attempt in (3, 6):
+                if attempt in (2, 4):
                     logger.info(f"再次嘗試透過 reopen_app 彈出 {app_name} 主視窗...")
                     self.reopen_app(app_name)
                     
@@ -125,7 +149,7 @@ class MacOSUIAdapter:
                     numbers = re.findall(r'-?\d+', res.stdout)
                     if len(numbers) >= 4:
                         x, y, w, h = int(numbers[0]), int(numbers[1]), int(numbers[2]), int(numbers[3])
-                        logger.info(f"成功獲取 {app_name} 視窗座標: x={x}, y={y}, w={w}, h={h} (嘗試次數: {attempt})")
+                        logger.info(f"成功透過 AppleScript 獲取 {app_name} 視窗座標: x={x}, y={y}, w={w}, h={h} (嘗試次數: {attempt})")
                         return x, y, w, h
                 else:
                     logger.warning(f"取得 {app_name} 視窗座標失敗 (嘗試 {attempt}/{retries})，AppleScript 回傳: {res.stderr.strip()}")
@@ -134,6 +158,12 @@ class MacOSUIAdapter:
             
             if attempt < retries:
                 time.sleep(delay)
+
+        # 3. 第三安全兜底：使用 LINE 已知穩定的標準預設座標
+        if app_name.upper() == "LINE":
+            default_x, default_y, default_w, default_h = 221, 92, 946, 889
+            logger.warning(f"⚠️ 啟用安全兜底預設座標: x={default_x}, y={default_y}, w={default_w}, h={default_h}，保障發送流程不中斷")
+            return default_x, default_y, default_w, default_h
                 
         logger.error(f"無法取得真實的 {app_name} 視窗座標！")
         return None
