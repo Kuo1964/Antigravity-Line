@@ -112,19 +112,31 @@ class MacOSUIAdapter:
         try:
             import Quartz
             window_list = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionAll, Quartz.kCGNullWindowID)
+            candidates = []
             for win in window_list:
                 owner = str(win.get("kCGWindowOwnerName", ""))
                 if owner.lower() == app_name.lower():
                     bounds = win.get("kCGWindowBounds", {})
                     layer = win.get("kCGWindowLayer", 0)
+                    win_name = str(win.get("kCGWindowName", ""))
                     w = int(bounds.get("Width", 0))
                     h = int(bounds.get("Height", 0))
                     x = int(bounds.get("X", 0))
                     y = int(bounds.get("Y", 0))
+                    # 排除 LINE 輔助無效視窗 (例如固定 x=0, 500x500 的背景視窗)
+                    if app_name.upper() == "LINE" and x == 0 and w == 500 and h == 500:
+                        continue
+
                     # 篩選主視窗 (Layer 為 0 且寬高大於 300)
                     if layer == 0 and w >= 300 and h >= 300:
-                        logger.info(f"✨ 成功透過 CoreGraphics 原生取得 {app_name} 視窗座標: x={x}, y={y}, w={w}, h={h}")
-                        return x, y, w, h
+                        candidates.append((win_name, x, y, w, h, w * h))
+
+            if candidates:
+                # 優先挑選視窗名稱完全符合者 (例如 LINE 主視窗通常名稱為 "LINE")，若無則依面積最大者排序
+                candidates.sort(key=lambda item: (item[0].lower() == app_name.lower(), item[5]), reverse=True)
+                best = candidates[0]
+                logger.info(f"✨ 成功透過 CoreGraphics 原生取得 {app_name} 主視窗座標 (名稱: '{best[0]}'): x={best[1]}, y={best[2]}, w={best[3]}, h={best[4]}")
+                return best[1], best[2], best[3], best[4]
         except Exception as e:
             logger.warning(f"CoreGraphics 原生獲取視窗座標異常: {e}")
 
