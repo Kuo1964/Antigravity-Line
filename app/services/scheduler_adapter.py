@@ -106,7 +106,7 @@ class SchedulerAdapter:
             # User Cron: Caffeinate + Send Script
             user_cron_lines.append(f"{cm} {ch} * * * /usr/bin/caffeinate -u -t 300")
             user_cron_lines.append(
-                f"{sm} {sh} * * * cd \"{self.project_root}\" && PYTHONPATH=. ./venv/bin/python scripts/send_daily_morning_card.py --target \"{target}\" --countdown 1 >> \"{self.project_root}/cron.log\" 2>&1"
+                f"{sm} {sh} * * * \"{self.project_root}/scripts/run_scheduled_job.sh\" scripts/send_daily_morning_card.py --target \"{target}\" --countdown 1 >> \"{self.project_root}/cron.log\" 2>&1"
             )
 
             # Root Cron: schedule_next_wake.sh (Wait, the root cron actually schedules the NEXT wake)
