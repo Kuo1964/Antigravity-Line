@@ -35,9 +35,12 @@ def focus_line_app(adapter: MacOSUIAdapter) -> bool:
         logger.error(f"聚焦 LINE App 異常: {e}")
         return False
 
-def search_and_send_image(target_name: str, image_path: str = "") -> bool:
+def search_and_send_image(target_name: str, image_path: str = "", dry_run: bool = False) -> bool:
     """
     在 LINE 桌面版中精確搜尋好友/群組名稱，點選該搜尋結果，並貼上 (Cmd+V) 傳送早安圖片
+    :param target_name: 目標名稱
+    :param image_path: 圖片檔案路徑
+    :param dry_run: 若為 True，則貼上圖片後不按下 Return 送出，供人工目視檢查
     """
     logger.info(f"準備使用 MacOSUIAdapter 精確搜尋: '{target_name}'...")
     
@@ -71,17 +74,17 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         adapter.send_keystroke("v", using_cmd=True)
         time.sleep(1.5) # 等待搜尋結果浮現
 
-        # 3. 按下 Return (Keycode 36) 開啟首項搜尋結果聊天室，並同時原生物理點擊輔助確保開啟
-        result_item_x = win_x + 220
-        result_item_y = win_y + 185
-        logger.info(f"步驟 C: 送出 Enter 鍵並輔以原生點擊 ({result_item_x}, {result_item_y}) 開啟 '{target_name}' 聊天室")
+        # 3. 按下 Return (Keycode 36) 開啟首項搜尋結果聊天室
+        logger.info(f"步驟 C: 送出 Enter 鍵直接開啟 '{target_name}' 聊天室")
         adapter.send_keycode(36) # Return: LINE 直接開啟搜尋結果第一項
-        time.sleep(0.5)
-        adapter.native_click(result_item_x, result_item_y)
-        time.sleep(1.5) # 等待聊天室完全載入，LINE 會自動將打字游標對焦於底部輸入框
+        time.sleep(1.5) # 等待聊天室完全載入展開
 
-        # 4. 游標已由 LINE 原生自動對焦於輸入框，無需也不應進行盲點輸入框以免點擊偏離導致失焦
-        logger.info("步驟 D: 依賴 LINE 原生對焦機制，游標已自動鎖定於聊天輸入框 🎯")
+        # 4. 原生實體點擊右側對話輸入框中心，確保游標 100% 聚焦於文字輸入區
+        chat_input_x = win_x + (win_w // 2) + 120
+        chat_input_y = win_y + win_h - 70
+        logger.info(f"步驟 D: 原生點擊右側對話框輸入區核心座標 ({chat_input_x}, {chat_input_y})，確保絕對對焦 🎯")
+        adapter.native_click(chat_input_x, chat_input_y)
+        time.sleep(0.5)
 
         # 5. 將圖片寫入系統剪貼簿
         if image_path and os.path.exists(image_path):
@@ -91,14 +94,18 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
             time.sleep(1.0)
 
         # 6. 貼上並發送 (Cmd + V, Return)
-        logger.info("步驟 F: 於目標聊天室貼上早安圖片並發送...")
+        logger.info("步驟 F: 於目標聊天室貼上早安圖片...")
         adapter.send_keystroke("v", using_cmd=True)
         logger.info("等待 3.5 秒讓 LINE 完整載入圖片預覽...")
         time.sleep(3.5)
-        adapter.send_keycode(36) # Return 發送
-        time.sleep(2.0)
         
-        logger.info(f"成功於 LINE 桌面版向 '{target_name}' 完成早安圖片發送！")
+        if not dry_run:
+            adapter.send_keycode(36) # Return 發送
+            time.sleep(2.0)
+            logger.info(f"成功於 LINE 桌面版向 '{target_name}' 完成早安圖片發送！")
+        else:
+            logger.info(f"⚠️ [模擬測試模式] 已將早安圖片貼入 '{target_name}' 聊天室，未按下發送，保留供目視檢查！")
+            
         return True
 
     except Exception as e:
