@@ -25,7 +25,7 @@ def main():
     load_dotenv()
     target = "Sophia Kuo"
     mac_password = os.getenv("MAC_PASSWORD", "")
-    delay = 12
+    delay = 20
 
     logger.info("==================================================================")
     logger.info(f" 🔒 準備進行「鎖定螢幕下」的模擬測試 (目標: '{target}')")

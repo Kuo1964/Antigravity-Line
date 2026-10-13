@@ -79,22 +79,22 @@ def search_and_send_image(target_name: str, image_path: str = "", dry_run: bool 
         adapter.send_keycode(36) # Return: LINE 直接開啟搜尋結果第一項
         time.sleep(1.5) # 等待聊天室完全載入展開
 
-        # 4. 原生實體點擊右側對話輸入框中心，確保游標 100% 聚焦於文字輸入區
-        chat_input_x = win_x + (win_w // 2) + 120
-        chat_input_y = win_y + win_h - 70
-        logger.info(f"步驟 D: 原生點擊右側對話框輸入區核心座標 ({chat_input_x}, {chat_input_y})，確保絕對對焦 🎯")
-        adapter.native_click(chat_input_x, chat_input_y)
-        time.sleep(0.5)
-
-        # 5. 將圖片寫入系統剪貼簿
+        # 4. 事先將早安圖片寫入系統剪貼簿，確保貼上時無任何外部行程干擾焦點
         if image_path and os.path.exists(image_path):
             from app.services.image_crawler import copy_image_to_clipboard
-            logger.info(f"步驟 E: 將早安圖片寫入剪貼簿 ({image_path})...")
+            logger.info(f"步驟 D: 將早安圖片事先寫入剪貼簿 ({image_path})...")
             copy_image_to_clipboard(image_path)
-            time.sleep(1.0)
+            time.sleep(0.5)
+
+        # 5. 原生實體點擊右側對話輸入框中心，緊接著立即貼上圖片，確保絕對對焦
+        chat_input_x = win_x + (win_w // 2) + 120
+        chat_input_y = win_y + win_h - 70
+        logger.info(f"步驟 E: 原生點擊右側對話框輸入區核心座標 ({chat_input_x}, {chat_input_y})，鎖定對焦 🎯")
+        adapter.native_click(chat_input_x, chat_input_y)
+        time.sleep(0.3)
 
         # 6. 貼上並發送 (Cmd + V, Return)
-        logger.info("步驟 F: 於目標聊天室貼上早安圖片...")
+        logger.info("步驟 F: 於目標聊天室立即貼上早安圖片 (Cmd+V)...")
         adapter.send_keystroke("v", using_cmd=True)
         logger.info("等待 3.5 秒讓 LINE 完整載入圖片預覽...")
         time.sleep(3.5)
