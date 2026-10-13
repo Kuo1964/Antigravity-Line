@@ -60,28 +60,28 @@ def search_and_send_image(target_name: str, image_path: str = "") -> bool:
         adapter.native_click(search_x, search_y)
         time.sleep(1.0)
 
-        # 2. 清空原本的搜尋內容 (Cmd+A, Backspace) 並輸入目標名稱
+        # 2. 清空原本的搜尋內容 (Cmd+A, Backspace) 並輸入目標名稱 (優先剪貼簿貼上防掉字)
         logger.info(f"步驟 B: 輸入目標名稱 '{target_name}'")
         adapter.send_keystroke("a", using_cmd=True)
         time.sleep(0.3)
         adapter.send_keycode(51) # Backspace
-        time.sleep(0.5)
-        adapter.send_keystroke(target_name)
-        time.sleep(2.0) # 等待搜尋結果浮現
+        time.sleep(0.3)
+        adapter.copy_text_to_clipboard(target_name)
+        time.sleep(0.3)
+        adapter.send_keystroke("v", using_cmd=True)
+        time.sleep(1.5) # 等待搜尋結果浮現
 
-        # 3. 往下點選搜尋結果清單中的第 1 個結果 (朋友)
+        # 3. 按下 Return (Keycode 36) 開啟首項搜尋結果聊天室，並同時原生物理點擊輔助確保開啟
         result_item_x = win_x + 220
         result_item_y = win_y + 185
-        logger.info(f"步驟 C: 原生實體點擊搜尋結果 '{target_name}' 項目座標 ({result_item_x}, {result_item_y})")
+        logger.info(f"步驟 C: 送出 Enter 鍵並輔以原生點擊 ({result_item_x}, {result_item_y}) 開啟 '{target_name}' 聊天室")
+        adapter.send_keycode(36) # Return: LINE 直接開啟搜尋結果第一項
+        time.sleep(0.5)
         adapter.native_click(result_item_x, result_item_y)
-        time.sleep(1.5) # 等待右側聊天室畫面載入
+        time.sleep(1.5) # 等待聊天室完全載入，LINE 會自動將打字游標對焦於底部輸入框
 
-        # 4. 點選右側聊天室下方的對話輸入框，確保游標在那裡
-        chat_input_x = win_x + (win_w // 2) + 100
-        chat_input_y = win_y + win_h - 60
-        logger.info(f"步驟 D: 原生點擊右側對話框輸入區座標 ({chat_input_x}, {chat_input_y})")
-        adapter.native_click(chat_input_x, chat_input_y)
-        time.sleep(0.6)
+        # 4. 游標已由 LINE 原生自動對焦於輸入框，無需也不應進行盲點輸入框以免點擊偏離導致失焦
+        logger.info("步驟 D: 依賴 LINE 原生對焦機制，游標已自動鎖定於聊天輸入框 🎯")
 
         # 5. 將圖片寫入系統剪貼簿
         if image_path and os.path.exists(image_path):

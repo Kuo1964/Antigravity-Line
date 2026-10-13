@@ -33,9 +33,42 @@ class TestMacOSUIAdapter(unittest.TestCase):
         self.assertEqual(bounds, (221, 92, 946, 889))
 
     @patch("Quartz.CGWindowListCopyWindowInfo")
+    def test_get_window_bounds_excludes_dummy_604x421_window(self, mock_cg):
+        """
+        驗證當同時存在 500x500 輔助視窗、604x421 dummy 黑色背板視窗與 946x889 主視窗時，
+        精確排除前兩者並選取 946x889 主視窗
+        """
+        mock_cg.return_value = [
+            # 輔助視窗 (Layer: 0, 500x500, x=0, y=482, Name="")
+            {
+                "kCGWindowOwnerName": "LINE",
+                "kCGWindowName": "",
+                "kCGWindowLayer": 0,
+                "kCGWindowBounds": {"X": 0, "Y": 482, "Width": 500, "Height": 500}
+            },
+            # Dummy 黑色背板視窗 (Layer: 0, 604x421, x=221, y=96, Name="")
+            {
+                "kCGWindowOwnerName": "LINE",
+                "kCGWindowName": "",
+                "kCGWindowLayer": 0,
+                "kCGWindowBounds": {"X": 221, "Y": 96, "Width": 604, "Height": 421}
+            },
+            # 真正的主視窗 (Layer: 0, 946x889, x=221, y=92, Name="LINE")
+            {
+                "kCGWindowOwnerName": "LINE",
+                "kCGWindowName": "LINE",
+                "kCGWindowLayer": 0,
+                "kCGWindowBounds": {"X": 221, "Y": 92, "Width": 946, "Height": 889}
+            }
+        ]
+
+        bounds = macos_ui_adapter.get_window_bounds("LINE")
+        self.assertEqual(bounds, (221, 92, 946, 889))
+
+    @patch("Quartz.CGWindowListCopyWindowInfo")
     def test_get_window_bounds_fallback_largest_area(self, mock_cg):
         """
-        驗證當視窗名稱皆為空時，依然依面積最大者優先選擇主視窗
+        驗證當視窗名稱皆為空時，依然依面積最大者優先選擇主視窗 (且過濾掉小於 700x500 視窗)
         """
         mock_cg.return_value = [
             # 較小視窗 (Layer: 0, 320x320)
@@ -45,7 +78,7 @@ class TestMacOSUIAdapter(unittest.TestCase):
                 "kCGWindowLayer": 0,
                 "kCGWindowBounds": {"X": 100, "Y": 100, "Width": 320, "Height": 320}
             },
-            # 較大視窗 (Layer: 0, 800x600)
+            # 較大主視窗 (Layer: 0, 800x600)
             {
                 "kCGWindowOwnerName": "LINE",
                 "kCGWindowName": "",

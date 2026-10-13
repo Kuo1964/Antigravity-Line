@@ -123,11 +123,12 @@ class MacOSUIAdapter:
                     h = int(bounds.get("Height", 0))
                     x = int(bounds.get("X", 0))
                     y = int(bounds.get("Y", 0))
-                    # 排除 LINE 輔助無效視窗 (例如固定 x=0, 500x500 的背景視窗)
-                    if app_name.upper() == "LINE" and x == 0 and w == 500 and h == 500:
-                        continue
+                    # 排除 LINE 輔助無效視窗與背板 Dummy 視窗 (500x500, 604x421 或小於 700x500)
+                    if app_name.upper() == "LINE":
+                        if (x == 0 and w == 500 and h == 500) or (w == 604 and h == 421) or (w < 700 or h < 500):
+                            continue
 
-                    # 篩選主視窗 (Layer 為 0 且寬高大於 300)
+                    # 篩選主視窗 (Layer 為 0 且寬高符合標準)
                     if layer == 0 and w >= 300 and h >= 300:
                         candidates.append((win_name, x, y, w, h, w * h))
 
@@ -194,6 +195,14 @@ class MacOSUIAdapter:
         if not self.se:
             return
         self.se.key_code(keycode)
+
+    def copy_text_to_clipboard(self, text: str) -> None:
+        """透過 pbcopy 將文字安全寫入系統剪貼簿"""
+        try:
+            p = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE, text=True)
+            p.communicate(text)
+        except Exception as e:
+            logger.warning(f"寫入文字至剪貼簿異常: {e}")
 
 # 全域單例導出
 macos_ui_adapter = MacOSUIAdapter()
