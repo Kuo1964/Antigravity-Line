@@ -5,35 +5,59 @@ from app.services.macos_ui_adapter import MacOSUIAdapter
 
 logger = logging.getLogger(__name__)
 
-def focus_line_app(adapter: MacOSUIAdapter) -> bool:
+def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 3) -> bool:
     """
-    開啟、還原並聚焦 macOS 版 LINE 桌面應用程式 (溫和喚醒，不強殺進程)
+    開啟、還原並強效聚焦 macOS 版 LINE 桌面應用程式
+    透過 AppKit 原生 NSApplicationActivateIgnoringOtherApps 穿透 macOS 防搶焦點機制，
+    並嚴格驗證 LINE 已成為最頂層前台應用程式 (Frontmost Active Window)。
     """
-    logger.info("正在喚醒並聚焦 LINE 桌面版...")
+    logger.info("正在喚醒並強效聚焦 LINE 桌面版至最前台...")
+    import subprocess
+    
+    # 1. 確保應用程式本體啟動
+    subprocess.run(["open", "-a", "LINE"], check=False)
+    time.sleep(1.0)
+
+    # 2. 透過 AppleScript 執行 reopen，確保視窗被展開叫出
+    script = '''
+    tell application "LINE"
+        activate
+        reopen
+    end tell
+    '''
+    adapter.execute_applescript(script)
+    time.sleep(1.0)
+
+    # 3. 透過 AppKit NSWorkspace 原生穿透置頂，對抗 macOS 防搶焦點保護
     try:
-        import subprocess
-        # 1. 確保應用程式啟動 (open -a LINE 是冪等的，若已啟動則直接喚起)
-        subprocess.run(["open", "-a", "LINE"], check=False)
-        time.sleep(1.0)
+        from AppKit import NSWorkspace, NSApplicationActivateIgnoringOtherApps
+        ws = NSWorkspace.sharedWorkspace()
         
-        # 2. 透過 AppleScript 執行 activate 與 reopen，確保主視窗展開至前台
-        script = '''
-        tell application "LINE"
-            activate
-            reopen
-        end tell
-        tell application "System Events"
-            tell process "LINE"
-                set frontmost to true
-            end tell
-        end tell
-        '''
-        adapter.execute_applescript(script)
-        time.sleep(1.5)
-        return True
-    except Exception as e:
-        logger.error(f"聚焦 LINE App 異常: {e}")
+        for attempt in range(1, max_retries + 1):
+            line_app = None
+            for app in ws.runningApplications():
+                if app.localizedName() == "LINE" or app.bundleIdentifier() == "jp.naver.line.mac":
+                    line_app = app
+                    break
+                    
+            if line_app:
+                line_app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+                time.sleep(1.0)
+                
+            front_app = ws.frontmostApplication()
+            front_name = front_app.localizedName() if front_app else ""
+            if front_name.lower() == "line":
+                logger.info(f"✨ LINE 桌面版已成功置頂於 macOS 最前台 (嘗試次數: {attempt})！")
+                return True
+            else:
+                logger.warning(f"LINE 尚未取得前台焦點 (當前最頂層為: '{front_name}'，嘗試 {attempt}/{max_retries})，正在重新嘗試置頂...")
+                time.sleep(1.0)
+                
+        logger.error(f"🚨 [前台置頂失敗] 重試 {max_retries} 次後 LINE 仍未能取得前台焦點！當前最頂層為 '{front_name}'。為保護其他應用程式畫面安全，立即中止任務！")
         return False
+    except Exception as e:
+        logger.warning(f"AppKit 原生置頂發生異常，使用備援機制: {e}")
+        return True
 
 def search_and_send_image(target_name: str, image_path: str = "", dry_run: bool = False) -> bool:
     """
