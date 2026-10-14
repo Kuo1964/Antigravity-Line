@@ -47,18 +47,35 @@ class MacUnlocker:
             return None
 
     def is_screen_locked(self) -> bool:
-        """檢查螢幕是否被鎖定 (嚴格判斷，預設安全 Fail-closed)"""
+        """檢查螢幕是否被鎖定 (結合前台行程與 Quartz 字典雙重判定)"""
         try:
-            # 透過 launchctl asuser 強制進入 GUI Session 命名空間，解決 cron 背景無法讀取狀態的問題
+            # 1. 前台行程優先檢驗：若最頂層為 loginwindow 或螢幕保護程式，100% 處於鎖定狀態
+            front_app = self.get_frontmost_app_name()
+            if front_app and front_app.lower() in self.ALLOWED_UNLOCK_PROCESSES:
+                logger.info(f"檢測到當前最上層前台行程為 '{front_app}'，確認螢幕處於鎖定狀態。")
+                return True
+
+            # 2. 原生 Quartz 字典檢查 (直接在進程中快速安全讀取)
+            try:
+                import Quartz
+                session_dict = Quartz.CGSessionCopyCurrentDictionary()
+                if session_dict and session_dict.get("CGSSessionScreenIsLocked", 0) == 1:
+                    logger.info("檢測到 Quartz CGSSessionScreenIsLocked = 1，確認螢幕處於鎖定狀態。")
+                    return True
+            except Exception:
+                pass
+
+            # 3. 透過 launchctl asuser 強制進入 GUI Session 命名空間作為備援檢查
             cmd = f"launchctl asuser $(id -u) {sys.executable} -c 'import Quartz; print(Quartz.CGSessionCopyCurrentDictionary())'"
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
             output = res.stdout
             
             # 如果成功讀取到鎖定標籤且明確為 1
-            if "CGSSessionScreenIsLocked = 1" in output:
+            if "CGSSessionScreenIsLocked = 1" in output or "CGSSessionScreenIsLocked: 1" in output:
+                logger.info("透過 launchctl 檢測到 CGSSessionScreenIsLocked，確認螢幕處於鎖定狀態。")
                 return True
             
-            # 若無明確鎖定標籤，一律安全判定為未鎖定 (嚴禁任何盲打密碼 Fallback)
+            # 若無明確鎖定標籤且前台非登入畫面，一律判定為未鎖定
             return False
             
         except Exception as e:

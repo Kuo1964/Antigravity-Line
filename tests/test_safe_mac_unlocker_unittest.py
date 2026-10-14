@@ -61,9 +61,15 @@ class TestSafeMacUnlocker(unittest.TestCase):
             self.assertTrue(result)
 
     def test_quartz_failure_fails_safe(self):
-        """測試 5：Quartz 檢查異常時採取安全預設 (Fail-closed) 判定未鎖定"""
-        with patch("subprocess.run", side_effect=Exception("Quartz error")):
+        """測試 5：Quartz 檢查異常且前台非 loginwindow 時採取安全預設 (Fail-closed) 判定未鎖定"""
+        with patch.object(self.unlocker, "get_frontmost_app_name", return_value="Terminal"), \
+             patch("subprocess.run", side_effect=Exception("Quartz error")):
             self.assertFalse(self.unlocker.is_screen_locked())
+
+    def test_locked_screen_detected_via_frontmost_loginwindow(self):
+        """測試 5.1：前台最頂層為 loginwindow 時，即使 Quartz 無鎖定標籤亦判定為鎖定"""
+        with patch.object(self.unlocker, "get_frontmost_app_name", return_value="loginwindow"):
+            self.assertTrue(self.unlocker.is_screen_locked())
 
     def test_lock_screen_keeps_screen_on_without_sleep(self):
         """測試 6：驗證發送完成後的 lock_screen 保持螢幕開啟，絕不調用 pmset displaysleepnow"""
@@ -80,3 +86,4 @@ class TestSafeMacUnlocker(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
