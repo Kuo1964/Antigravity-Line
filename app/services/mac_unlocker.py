@@ -131,15 +131,20 @@ class MacUnlocker:
             end tell
             '''
             subprocess.run(["osascript", "-e", applescript_cmd], check=True, timeout=10)
-            time.sleep(2.0)
+            # 4. 解鎖後狀態輪詢複查 (等待 macOS 登入視窗解鎖與過渡動畫完成，最多等 8 秒)
+            logger.info("密碼已送出，正在等待 macOS 完成解鎖與過渡動畫...")
+            unlocked = False
+            for _ in range(16):  # 16 * 0.5s = 最多 8 秒
+                time.sleep(0.5)
+                if not self.is_screen_locked():
+                    unlocked = True
+                    break
             
-            # 4. 解鎖後狀態複查
-            is_still_locked = self.is_screen_locked()
-            if not is_still_locked:
+            if unlocked:
                 logger.info("macOS 螢幕已成功解鎖 🔓")
                 return True
             else:
-                logger.warning("密碼已輸入，但螢幕仍處於鎖定狀態 (可能密碼不符或介面延遲)。")
+                logger.warning("密碼已輸入，但輪詢等待逾時後螢幕仍處於鎖定狀態。")
                 return False
         except Exception as e:
             logger.error(f"模擬解鎖密碼失敗: {e}")

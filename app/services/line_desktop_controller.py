@@ -5,7 +5,7 @@ from app.services.macos_ui_adapter import MacOSUIAdapter
 
 logger = logging.getLogger(__name__)
 
-def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 3) -> bool:
+def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 6) -> bool:
     """
     開啟、還原並強效聚焦 macOS 版 LINE 桌面應用程式
     透過 AppKit 原生 NSApplicationActivateIgnoringOtherApps 穿透 macOS 防搶焦點機制，
@@ -16,7 +16,7 @@ def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 3) -> bool:
     
     # 1. 確保應用程式本體啟動
     subprocess.run(["open", "-a", "LINE"], check=False)
-    time.sleep(1.0)
+    time.sleep(1.5)
 
     # 2. 透過 AppleScript 執行 reopen，確保視窗被展開叫出
     script = '''
@@ -51,6 +51,8 @@ def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 3) -> bool:
                 return True
             else:
                 logger.warning(f"LINE 尚未取得前台焦點 (當前最頂層為: '{front_name}'，嘗試 {attempt}/{max_retries})，正在重新嘗試置頂...")
+                # 重新呼叫 reopen 以防視窗處於最小化或未還原狀態
+                adapter.execute_applescript(script)
                 time.sleep(1.0)
                 
         logger.error(f"🚨 [前台置頂失敗] 重試 {max_retries} 次後 LINE 仍未能取得前台焦點！當前最頂層為 '{front_name}'。為保護其他應用程式畫面安全，立即中止任務！")
