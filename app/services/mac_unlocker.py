@@ -22,14 +22,28 @@ class MacUnlocker:
     }
 
     def get_frontmost_app_name(self) -> Optional[str]:
-        """取得當前最上層活動中的應用程式名稱 (實時硬體窗口與 RunLoop 刷新雙重保障)"""
-        # 方法 1: 透過 macOS WindowServer CoreGraphics (Quartz) 實時視窗查詢 (即時無快取滯留)
+        """取得當前最上層活動中的應用程式名稱 (精準區分高層級 loginwindow 與 Layer 0 桌面視窗)"""
         try:
             import Quartz
+            # 1. 檢查 Quartz Session 是否處於螢幕鎖定狀態
+            session_dict = Quartz.CGSessionCopyCurrentDictionary()
+            if session_dict and session_dict.get("CGSSessionScreenIsLocked", 0) == 1:
+                return "loginwindow"
+
+            # 2. 查詢當前螢幕上所有可見視窗
             windows = Quartz.CGWindowListCopyWindowInfo(
                 Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements, 
                 Quartz.kCGNullWindowID
             )
+            
+            # 若有高層級 loginwindow (Layer >= 1000) 覆蓋螢幕，必定為 loginwindow
+            for w in windows:
+                layer = w.get("kCGWindowLayer", 0)
+                owner = str(w.get("kCGWindowOwnerName", "")).strip()
+                if owner.lower() == "loginwindow" and layer >= 1000:
+                    return "loginwindow"
+
+            # 3. 正常桌面狀態下：尋找 Layer 0 的最頂層一般應用程式視窗
             for w in windows:
                 layer = w.get("kCGWindowLayer", 0)
                 owner = str(w.get("kCGWindowOwnerName", "")).strip()
