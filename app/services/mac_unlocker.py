@@ -22,10 +22,30 @@ class MacUnlocker:
     }
 
     def get_frontmost_app_name(self) -> Optional[str]:
-        """取得當前最上層活動中的應用程式名稱 (優先使用 Cocoa AppKit，備援 AppleScript)"""
-        # 方法 1: 透過 Cocoa 原生 NSWorkspace 取得 (超快速且無 System Events 權限逾時問題)
+        """取得當前最上層活動中的應用程式名稱 (實時硬體窗口與 RunLoop 刷新雙重保障)"""
+        # 方法 1: 透過 macOS WindowServer CoreGraphics (Quartz) 實時視窗查詢 (即時無快取滯留)
+        try:
+            import Quartz
+            windows = Quartz.CGWindowListCopyWindowInfo(
+                Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements, 
+                Quartz.kCGNullWindowID
+            )
+            for w in windows:
+                layer = w.get("kCGWindowLayer", 0)
+                owner = str(w.get("kCGWindowOwnerName", "")).strip()
+                bounds = w.get("kCGWindowBounds", {})
+                w_width = bounds.get("Width", 0)
+                w_height = bounds.get("Height", 0)
+                if layer == 0 and w_width > 100 and w_height > 100 and owner not in ("Window Server", "Dock"):
+                    return owner
+        except Exception:
+            pass
+
+        # 方法 2: 透過 Cocoa 原生 NSWorkspace 取得 (主動泵送 RunLoop 避免快取停滯)
         try:
             from AppKit import NSWorkspace
+            from Foundation import NSRunLoop, NSDate
+            NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.05))
             front_app = NSWorkspace.sharedWorkspace().frontmostApplication()
             if front_app:
                 name = front_app.localizedName() or front_app.bundleIdentifier()
@@ -34,7 +54,7 @@ class MacUnlocker:
         except Exception:
             pass
 
-        # 方法 2: 備援 AppleScript 查詢
+        # 方法 3: 備援 AppleScript 查詢
         try:
             cmd = "osascript -e 'tell application \"System Events\" to get name of first application process whose frontmost is true'"
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)

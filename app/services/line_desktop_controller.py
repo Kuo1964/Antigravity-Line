@@ -31,9 +31,17 @@ def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 6) -> bool:
     # 3. 透過 AppKit NSWorkspace 原生穿透置頂，對抗 macOS 防搶焦點保護
     try:
         from AppKit import NSWorkspace, NSApplicationActivateIgnoringOtherApps
+        from Foundation import NSRunLoop, NSDate
+        from app.services.mac_unlocker import mac_unlocker
         ws = NSWorkspace.sharedWorkspace()
         
         for attempt in range(1, max_retries + 1):
+            # 泵送事件循環，刷新 Cocoa 內部狀態
+            try:
+                NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.05))
+            except Exception:
+                pass
+
             line_app = None
             for app in ws.runningApplications():
                 if app.localizedName() == "LINE" or app.bundleIdentifier() == "jp.naver.line.mac":
@@ -44,8 +52,12 @@ def focus_line_app(adapter: MacOSUIAdapter, max_retries: int = 6) -> bool:
                 line_app.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
                 time.sleep(1.0)
                 
-            front_app = ws.frontmostApplication()
-            front_name = front_app.localizedName() if front_app else ""
+            # 優先從 WindowServer 獲取當前真實最頂層 App
+            front_name = mac_unlocker.get_frontmost_app_name() or ""
+            if not front_name:
+                front_app = ws.frontmostApplication()
+                front_name = front_app.localizedName() if front_app else ""
+
             if front_name.lower() == "line":
                 logger.info(f"✨ LINE 桌面版已成功置頂於 macOS 最前台 (嘗試次數: {attempt})！")
                 return True
