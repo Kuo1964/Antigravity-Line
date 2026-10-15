@@ -1,34 +1,63 @@
-# TICKET-005 實作計畫 (Implementation Plan) - 三段式異步進度心跳推播與任務互斥鎖
+# 導入計畫：macOS 鎖定狀態無人值守自動解鎖與 LINE 早安圖發送流程修復
 
-## 背景與目標
-為提升 LINE 使用者體驗與系統並行執行安全性：
-1. **三段式異步狀態推播**：在背景處理耗時 Agent 任務時，實施三段式推播機制：
-   - **第一段（秒回 200 OK 時）**：推播 `🚀 已成功接收任務，目標專案 [XXX]，正在背景啟動 Agent 執行...`。
-   - **第二段（進度心跳 Progress Heartbeat）**：每 15 秒透過 `line_delivery_adapter.deliver_text` 推播 `⏳ Agent 仍在執行中，請稍候...` 心跳訊息。
-   - **第三段（最終成果推播）**：任務完成時推播最終 Agent 成果。
-2. **每位 User ID 任務互斥鎖 (`asyncio.Lock`)**：為避免同一使用者連續發送指令導致重複或混亂執行的併發問題，維護全域 `user_locks: Dict[str, asyncio.Lock]`。若上一任務尚未完成又發送新指令，推播 `⚠️ 當前已有執行中的任務，請稍候完成後再下達新指令。`。
+## 1. 問題概述 (Background & Root Causes)
+在 2026-10-14 21:30 排程執行時，發送給 Sophia Kuo 的早安圖片未能送出。經系統日誌深度剖析與實機測試，鎖定了三大核心根因：
+1. **鎖定狀態誤判 (Quartz 字典字串延遲)**：
+   原先 `is_screen_locked()` 僅依賴字串比對 `CGSSessionScreenIsLocked = 1`，在背景定時喚醒無 GUI 上下文環境下容易漏判，誤判為「未鎖定」而跳過密碼輸入步驟。
+2. **Cocoa AppKit 記憶體快取停滯**：
+   在 CLI Python 腳本（非 GUI App）中，缺少持續運行的 `NSRunLoop`，導致 `NSWorkspace.sharedWorkspace().frontmostApplication()` 停留在第一次呼叫時獲取的 `loginwindow`，即使螢幕已成功登入並切換至桌面，依然返回舊值導致逾時熔斷。
+3. **macOS 視窗層級 (Window Layer) 穿透問題**：
+   `loginwindow`（鎖定畫面）的視窗層級在 Layer 2000 以上。使用純 Layer 0 查詢會直接穿透遮罩層讀取到背景底層應用程式（如 Antigravity），觸發密碼輸入黑名單熔斷。
 
-## 變更項目
+---
 
-### 1. `app/main.py`
-- 新增全域 `user_locks: Dict[str, asyncio.Lock] = {}` 及 `get_user_lock(user_id: str) -> asyncio.Lock`。
-- 修改 `/webhook` 端點：
-  - 一般任務處理時，先檢視 `lock = get_user_lock(user_id)`。若 `lock.locked()` 或 `agent_manager.is_busy(user_id)`，則透過 `line_delivery_adapter.deliver_text` 推播 `⚠️ 當前已有執行中的任務，請稍候完成後再下達新指令。` 並跳過該事件。
-  - 若未鎖定，使用 `await lock.acquire()` 立即獲取鎖。
-  - 根據手動鎖定專案、對話動態識別專案或 Session 現狀解析出目標專案名稱 `proj_name`。
-  - 推播第一段訊息：`🚀 已成功接收任務，目標專案 [{proj_name}]，正在背景啟動 Agent 執行...`。
-  - 安排 `background_tasks.add_task(process_background_agent_task, user_id, user_text)`。
-- 修改 `process_background_agent_task(user_id: str, user_text: str)`：
-  - 建立背景心跳 task（每 15 秒推播 `⏳ Agent 仍在執行中，請稍候...`）。
-  - 呼叫 `await agent_manager.run_agent_task(user_id, user_text)` 取得成果。
-  - 推播第三段成果訊息。
-  - 於 `finally` 區塊中：
-    - 取消心跳 task。
-    - 釋放使用者任務鎖：`if lock.locked(): lock.release()`。
+## 2. 解決方案架構 (Solution Architecture)
 
-### 2. `tests/test_webhook.py`
-- 新增 `test_three_stage_async_push()` 驗證第一段接收推播、第二段心跳推播與第三段成果推播流程。
-- 新增 `test_user_task_mutex_lock()` 驗證重複發送指令時正確推播互斥提示訊息 `⚠️ 當前已有執行中的任務，請稍候完成後再下達新指令。`。
+```
+[ 排程觸發 / 定時喚醒 ]
+         │
+         ▼
+[ 1. 喚醒螢幕 (caffeinate) ]
+         │
+         ▼
+[ 2. 鎖定狀態精確檢測 (mac_unlocker) ]
+   ├── 檢查 CGSSessionScreenIsLocked == 1
+   └── 檢查 WindowServer Layer >= 1000 遮罩層 (loginwindow)
+         │
+    (確認鎖定)
+         ▼
+[ 3. 安全自動解鎖 (unlock_screen) ]
+   ├── 嚴格白名單校驗 (前台確認為 loginwindow)
+   ├── 模擬輸入密碼 + Return (key code 36)
+   └── 8 秒動態輪詢等待登入淡出過渡動畫完成
+         │
+    (確認解鎖完成)
+         ▼
+[ 4. 抓取早安圖 (image_crawler) ]
+   └── 下載最新 Bing 圖片並寫入剪貼簿
+         │
+         ▼
+[ 5. 置頂 LINE 桌面版 (line_desktop_controller) ]
+   ├── 啟動 / 還原視窗 (open -a LINE / reopen)
+   ├── 泵送 NSRunLoop 刷新系統狀態
+   └── 實時檢查 WindowServer Layer 0 最頂層視窗屬主是否為 LINE (最多重試 6 次)
+         │
+    (確認置頂成功)
+         ▼
+[ 6. 精確點擊搜尋與貼圖 (macos_ui_adapter) ]
+   ├── 點擊全域搜尋框座標 ➜ 貼上 "Sophia Kuo" ➜ Return 開啟聊天室
+   └── 點擊右側對話框輸入區 ➜ Cmd + V 貼上圖片 (dry_run 模式保留目視)
+```
 
-## 驗證流程
-- 執行 `./venv/bin/python -m pytest tests/test_webhook.py` 確保 100% 綠燈通過。
+---
+
+## 3. 測試與驗證結果 (Verification & Status)
+
+1. **單元測試全數通過**：
+   - `tests/test_safe_mac_unlocker_unittest.py`：覆蓋白名單解鎖、黑名單熔斷、None 阻斷、loginwindow 識別、Fail-Closed 防護等 7 項測試全數 PASS。
+   - `tests/test_line_delivery_adapter.py` 等模組測試通過，總計 12 項測試全數 `OK`。
+2. **實機鎖定模擬測試 (`dry_run=True`)**：
+   - 螢幕鎖定（`Ctrl+Cmd+Q`）後，系統自動喚醒、自動輸入密碼進入桌面、喚起 LINE（一次置頂成功）、搜尋 Sophia Kuo 並將早安圖片精準貼入對話輸入框中。
+   - 使用者已目視確認早安圖在輸入框內就位完畢！
+3. **雲端與地端同步**：
+   - 雲端 GitHub main 與地端目錄 `/Users/johnkuo/worktemp/Antigravity-Line` 已完全對齊最新代碼。
