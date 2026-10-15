@@ -63,6 +63,7 @@ class TestSafeMacUnlocker(unittest.TestCase):
     def test_quartz_failure_fails_safe(self):
         """測試 5：Quartz 檢查異常且前台非 loginwindow 時採取安全預設 (Fail-closed) 判定未鎖定"""
         with patch.object(self.unlocker, "get_frontmost_app_name", return_value="Terminal"), \
+             patch("Quartz.CGSessionCopyCurrentDictionary", side_effect=Exception("Quartz error")), \
              patch("subprocess.run", side_effect=Exception("Quartz error")):
             self.assertFalse(self.unlocker.is_screen_locked())
 
