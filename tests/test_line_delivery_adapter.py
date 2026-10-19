@@ -103,12 +103,13 @@ def test_search_field_mismatch_triggers_fuse_and_blocks_sending():
             assert call_args[0][0] != 36
 
 def test_search_field_match_allows_sending():
-    """測試：當搜尋框內文字吻合目標好友時，通過驗證並順利執行」"""
+    """測試：當搜尋框內文字與 Vision 標題皆吻合目標好友時，通過驗證並順利執行」"""
     from unittest.mock import patch, MagicMock
     from app.services.line_desktop_controller import search_and_send_image
     
     with patch("app.services.line_desktop_controller.focus_line_app", return_value=True), \
          patch("app.services.line_desktop_controller.MacOSUIAdapter") as mock_adapter_cls, \
+         patch("app.services.line_desktop_controller.verify_line_chat_title", return_value=True), \
          patch("app.services.line_desktop_controller.get_line_search_field_info", return_value=((100, 100, 200, 30), "Sophia Kuo")): # 模擬吻合
         
         mock_adapter = MagicMock()
@@ -117,3 +118,24 @@ def test_search_field_match_allows_sending():
         
         res = search_and_send_image(target_name="Sophia Kuo", image_path="", dry_run=True)
         assert res is True
+
+def test_ocr_chat_title_mismatch_triggers_fuse_and_blocks_sending():
+    """測試：當搜尋成功但右側聊天室標題 (Vision OCR) 判定非目標好友時，強制熔斷中止，絕不貼圖送出」"""
+    from unittest.mock import patch, MagicMock
+    from app.services.line_desktop_controller import search_and_send_image
+    
+    with patch("app.services.line_desktop_controller.focus_line_app", return_value=True), \
+         patch("app.services.line_desktop_controller.MacOSUIAdapter") as mock_adapter_cls, \
+         patch("app.services.line_desktop_controller.get_line_search_field_info", return_value=((100, 100, 200, 30), "Sophia Kuo")), \
+         patch("app.services.line_desktop_controller.verify_line_chat_title", return_value=False): # 模擬標題不是目標對象
+        
+        mock_adapter = MagicMock()
+        mock_adapter_cls.return_value = mock_adapter
+        mock_adapter.get_window_bounds.return_value = (0, 0, 1000, 800)
+        
+        # 標題不吻合時，必須熔斷回傳 False
+        res = search_and_send_image(target_name="Sophia Kuo", image_path="/tmp/fake.jpg", dry_run=False)
+        assert res is False
+        # 確保絕無執行發送 KeyCode 36 (Return) 發送行為
+        for call_args in mock_adapter.send_keycode.call_args_list:
+            assert call_args[0][0] != 36

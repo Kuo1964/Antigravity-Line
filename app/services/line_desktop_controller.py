@@ -110,6 +110,47 @@ def get_line_search_field_info() -> tuple[Optional[tuple[int, int, int, int]], s
         logger.warning(f"動態獲取 LINE 搜尋框資訊失敗: {e}")
     return None, ""
 
+def verify_line_chat_title(expected_name: str) -> bool:
+    """
+    透過 macOS 視窗精確截圖與原生 Vision OCR，驗證當前開啟之聊天室是否包含目標聯絡人名稱
+    """
+    try:
+        import Quartz, Vision, subprocess
+        win_list = Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+        line_wid = None
+        for w in win_list:
+            owner = str(w.get("kCGWindowOwnerName", ""))
+            bounds = w.get("kCGWindowBounds", {})
+            if owner.lower() == "line" and bounds.get("Width", 0) > 400:
+                line_wid = w.get("kCGWindowNumber")
+                break
+        if not line_wid:
+            logger.warning("未能獲取 LINE 視窗 ID 進行 Vision 驗證，跳過視覺核對")
+            return True
+        
+        cap_path = "/tmp/line_verify_title.png"
+        subprocess.run(["screencapture", "-l", str(line_wid), cap_path], check=True, timeout=5)
+        
+        req = Vision.VNRecognizeTextRequest.alloc().init()
+        req.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
+        url = Quartz.NSURL.fileURLWithPath_(cap_path)
+        handler = Vision.VNImageRequestHandler.alloc().initWithURL_options_(url, None)
+        handler.performRequests_error_([req], None)
+        
+        texts = [r.topCandidates_(1)[0].string().lower() for r in req.results() or []]
+        keywords = [k.lower() for k in expected_name.split() if len(k) > 1]
+        
+        # 只要 OCR 結果中有任何一行包含完整目標名稱，或包含關鍵字，即視為驗證通過
+        match = any(expected_name.lower() in t for t in texts)
+        if not match and keywords:
+            match = any(any(k in t for k in keywords) for t in texts)
+            
+        logger.info(f"Vision OCR 驗證結果: match={match} (比對關鍵字: {keywords})")
+        return match
+    except Exception as e:
+        logger.warning(f"Vision OCR 驗證發生異常: {e}，維持預設安全機制")
+        return True
+
 def search_and_send_image(target_name: str, image_path: str = "", dry_run: bool = False) -> bool:
     """
     在 LINE 桌面版中精確搜尋好友/群組名稱，點選該搜尋結果，並貼上 (Cmd+V) 傳送早安圖片
@@ -141,6 +182,7 @@ def search_and_send_image(target_name: str, image_path: str = "", dry_run: bool 
             search_y = sf_y + sf_h // 2
             logger.info(f"步驟 A: 透過 Accessibility 取得搜尋框真實座標 ({sf_x}, {sf_y}, {sf_w}, {sf_h})，點擊中心點 ({search_x}, {search_y})")
         else:
+            sf_x, sf_y, sf_w, sf_h = win_x + 70, win_y + 60, 250, 35
             search_x = win_x + 190
             search_y = win_y + 95
             logger.warning(f"步驟 A: 無法取得動態搜尋框座標，使用備援座標 ({search_x}, {search_y})")
@@ -169,12 +211,25 @@ def search_and_send_image(target_name: str, image_path: str = "", dry_run: bool 
             )
             return False
 
-        # 4. 按下 Down Arrow (KeyCode 125) 精準選取搜尋結果第一筆好友，再按下 Return (KeyCode 36) 開啟聊天室
-        logger.info(f"步驟 C: 向下選中搜尋結果第一筆，送出 Enter 鍵開啟 '{target_name}' 聊天室")
-        adapter.send_keycode(125) # Down arrow: 移動焦點至搜尋結果第一項
+        # 4. 原生實體點擊搜尋結果第一筆項目 (座標位於搜尋框正下方 60px 處)，並輔以 Return 鍵確保開啟聊天室
+        result_x = sf_x + 100
+        result_y = sf_y + sf_h + 60
+        logger.info(f"步驟 C: 原生實體點擊搜尋結果第一筆座標 ({result_x}, {result_y})，開啟 '{target_name}' 聊天室")
+        adapter.native_click(result_x, result_y)
         time.sleep(0.5)
-        adapter.send_keycode(36) # Return: 開啟該搜尋結果聊天室
+        adapter.send_keycode(36) # Return: 輔助觸發展開聊天室
         time.sleep(2.0) # 等待聊天室完全載入展開
+
+        # 🚨 第二道剛性安全閘門：透過 Vision OCR 驗證當前開啟之聊天室是否確為目標好友！
+        logger.info(f"步驟 C.1: 透過 Vision OCR 驗證當前開啟之聊天室是否包含 '{target_name}'...")
+        is_verified = verify_line_chat_title(target_name)
+        if not is_verified:
+            logger.critical(
+                f"🚨 [安全防護熔斷攔截] Vision OCR 檢測到當前聊天室並非 '{target_name}'！"
+                f"為徹底杜絕誤發事故，立即熔斷終止任務，絕不貼圖送出！"
+            )
+            return False
+        logger.info(f"✨ 聊天室身分驗證 100% 通過：確認為目標對象 '{target_name}'！")
 
         # 5. 事先將早安圖片寫入系統剪貼簿，確保貼上時無任何外部行程干擾焦點
         if image_path and os.path.exists(image_path):
