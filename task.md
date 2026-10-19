@@ -1,20 +1,20 @@
-# 任務清單：修復鎖定螢幕無人值守自動解鎖與置頂發送早安圖全流程
+# 任務清單：根除 LINE 搜尋偏差誤發群組漏洞與強化搜尋回讀熔斷閘門
 
-- [x] 1. 深度診斷 2026-10-14 21:30 Sophia Kuo 早安圖片未發送故障根因（Quartz 字典延遲與登入畫面遮罩問題）
-- [x] 2. 強化 `app/services/mac_unlocker.py`：
-  - [x] 加入 `loginwindow` / `screensaverengine` 前台即時優先判斷，徹底防止將鎖定狀態誤判為未鎖定
-  - [x] 重構 `get_frontmost_app_name()`，採用 macOS WindowServer (CoreGraphics Quartz) 原生實時視窗查詢，解決 Cocoa AppKit 在無 RunLoop 環境下的記憶體快取停滯問題
-  - [x] 識別 Layer >= 1000 之系統登入遮罩層，防止穿透誤讀底層桌面視窗（如 Antigravity）觸發黑名單熔斷
-  - [x] 引入解鎖後 8 秒動態輪詢等待機制，相容 macOS 登入視窗淡出過渡動畫時間
-- [x] 3. 強化 `app/services/line_desktop_controller.py`：
-  - [x] 置頂重試提升至 6 次，並在輪詢中泵送 `NSRunLoop` 刷新系統狀態
-  - [x] 透過實時 WindowServer 視窗屬主辨識 LINE 置頂狀態，消除無效熔斷
-- [x] 4. 單元測試強化與環境隔離：
-  - [x] 新增 `test_locked_screen_detected_via_frontmost_loginwindow` 單元測試
-  - [x] 隔離原生 Quartz 檢查，全套 12 項單元測試 100% 綠燈通過
+- [x] 1. 深度診斷 2026-10-18 21:30 早安圖片誤發至「高爾夫球隊群組」之致命根因（寫死相對座標 Y 軸偏移導致未點入搜尋框，且缺少目標標題/搜尋結果驗證機制）
+- [x] 2. 透過 macOS Accessibility System Events 探測 LINE 搜尋框架構：
+  - [x] 確定全域搜尋框為 `text field 1 of splitter group 1 of window 1`
+  - [x] 取得真實動態絕對座標 `(295, 159, 254, 38)`，點擊中心點 `(422, 178)`
+- [x] 3. 重構 `app/services/line_desktop_controller.py`：
+  - [x] 實裝 `get_line_search_field_info()` 動態獲取搜尋框座標與當前值
+  - [x] 加入「步驟 B.1 搜尋文字回讀剛性熔斷閘門」：若搜尋框文字未包含目標好友，立即中止任務，絕不貼圖送出
+  - [x] 加入「向下鍵 (KeyCode 125)」選取搜尋結果第一筆再按 Enter，確保切換至目標好友聊天室
+- [x] 4. 新增與執行單元測試：
+  - [x] `tests/test_line_delivery_adapter.py` 新增搜尋框不吻合熔斷與吻合發送之雙重單元測試
+  - [x] 全套 14 項單元測試 100% 綠燈通過
 - [x] 5. 雲端與地端雙向同步：
-  - [x] GitHub main 分支推送最新提交
+  - [x] GitHub main 分支推送最新提交（`74b047d`）
   - [x] 地端排程目錄 (`/Users/johnkuo/worktemp/Antigravity-Line`) 完成 `git pull` 同步
-- [x] 6. 實機鎖定全自動貼圖模擬測試（`dry_run=True`）驗證通過：
-  - [x] 自動喚醒螢幕 ➜ 自動輸入密碼解鎖 ➜ 下載早安圖 ➜ 喚起 LINE 一次置頂 ➜ 搜尋 Sophia Kuo ➜ 貼入圖片待命
-  - [x] 使用者親眼目視確認早安圖已成功貼在 Sophia Kuo 對話輸入框中
+- [x] 6. 實機執行模擬貼圖測試驗證：
+  - [x] 實時取得搜尋框座標並精確點擊中心點
+  - [x] 成功輸入 `Sophia Kuo` 並通過「步驟 B.1 驗證搜尋框當前輸入值: 'Sophia Kuo'」
+  - [x] 成功切換至 Sophia Kuo 聊天室並將早安圖片貼入對話輸入框待命（未發送）
