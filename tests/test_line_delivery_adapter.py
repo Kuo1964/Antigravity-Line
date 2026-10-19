@@ -136,6 +136,6 @@ def test_ocr_chat_title_mismatch_triggers_fuse_and_blocks_sending():
         # 標題不吻合時，必須熔斷回傳 False
         res = search_and_send_image(target_name="Sophia Kuo", image_path="/tmp/fake.jpg", dry_run=False)
         assert res is False
-        # 確保絕無執行發送 KeyCode 36 (Return) 發送行為
-        for call_args in mock_adapter.send_keycode.call_args_list:
-            assert call_args[0][0] != 36
+        # 確保絕無執行貼上圖片 (Cmd+V)
+        # 只有清空搜尋框 (Cmd+A) 與貼上搜尋文字 (Cmd+V) 兩次
+        assert mock_adapter.send_keystroke.call_count == 2
