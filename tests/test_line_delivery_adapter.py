@@ -81,3 +81,39 @@ def test_deliver_text_with_markdown_and_chunking(mocker=None):
     for chunk in chunks:
         assert len(chunk) <= 2000
     assert "📌 長訊息標題" in chunks[0]
+
+def test_search_field_mismatch_triggers_fuse_and_blocks_sending():
+    """測試：當搜尋框內文字為空或與目標好友不符時，觸發剛性安全熔斷，絕不貼圖送出」"""
+    from unittest.mock import patch, MagicMock
+    from app.services.line_desktop_controller import search_and_send_image
+    
+    with patch("app.services.line_desktop_controller.focus_line_app", return_value=True), \
+         patch("app.services.line_desktop_controller.MacOSUIAdapter") as mock_adapter_cls, \
+         patch("app.services.line_desktop_controller.get_line_search_field_info", return_value=((100, 100, 200, 30), "")): # 模擬搜尋框為空
+        
+        mock_adapter = MagicMock()
+        mock_adapter_cls.return_value = mock_adapter
+        mock_adapter.get_window_bounds.return_value = (0, 0, 1000, 800)
+        
+        # 目標為 Sophia Kuo，但搜尋框回傳 ""
+        res = search_and_send_image(target_name="Sophia Kuo", image_path="/tmp/fake.jpg", dry_run=False)
+        assert res is False
+        # 確保絕無執行發送 KeyCode 36 (Return) 發送行為
+        for call_args in mock_adapter.send_keycode.call_args_list:
+            assert call_args[0][0] != 36
+
+def test_search_field_match_allows_sending():
+    """測試：當搜尋框內文字吻合目標好友時，通過驗證並順利執行」"""
+    from unittest.mock import patch, MagicMock
+    from app.services.line_desktop_controller import search_and_send_image
+    
+    with patch("app.services.line_desktop_controller.focus_line_app", return_value=True), \
+         patch("app.services.line_desktop_controller.MacOSUIAdapter") as mock_adapter_cls, \
+         patch("app.services.line_desktop_controller.get_line_search_field_info", return_value=((100, 100, 200, 30), "Sophia Kuo")): # 模擬吻合
+        
+        mock_adapter = MagicMock()
+        mock_adapter_cls.return_value = mock_adapter
+        mock_adapter.get_window_bounds.return_value = (0, 0, 1000, 800)
+        
+        res = search_and_send_image(target_name="Sophia Kuo", image_path="", dry_run=True)
+        assert res is True
