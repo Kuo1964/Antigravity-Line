@@ -1,54 +1,28 @@
-# 導入計畫：LINE 全域搜尋動態座標定位與發送前文字回讀熔斷閘門
+# 導入計畫：Harness² 雙層遞迴優化與 `.agents` 8 大外圍元件配置
 
-## 1. 事故背景與根因深度剖析 (Incident Analysis)
-在 2026-10-18 21:30 排程執行時，原定送給 Sophia Kuo 的早安圖片，意外發送到了原本開著的「2026【第二十一屆賓航賓士高爾夫球隊】會務群組 (59)」。
-經調閱當前 LINE Accessibility UI 架構與截圖分析，發現兩大致命死穴：
-1. **寫死相對座標導致點擊搜尋框偏離**：
-   原代碼使用固定偏移 `win_x + 190, win_y + 95`，算出的座標為 `(411, 187)`。而真實搜尋框邊界為 `Y: 159 ~ 197`，且上方有分類 Tab，點擊落在邊緣外側，**導致搜尋框根本未取得焦點**，截圖清楚可見搜尋框仍為灰色佔位字串 `🔍 搜尋聊天和訊息`。
-2. **缺少目標聊天室與搜尋結果驗證機制**：
-   搜尋框未聚焦的情況下，後續文字輸入與 Return 按鍵全數落空，畫面依然停留在上次使用者開啟的高爾夫球隊群組。隨後的貼圖與 Return 發送直接發給了該群組！
+## 1. 背景與目標 (Background & Objective)
+依據 **Google Harness² (Recursive Agent Harnessing for an Open World)** 框架，透過 **Propose–Probe–Compose** 任務層級遞迴與 **Experience Reflector** 編排層級遞迴，將本專案近期解決的四大核心實證教訓（WindowServer Layer >= 1000 鎖屏判定、CLI 缺少 `NSRunLoop` 快取停滯、Accessibility 動態搜尋框回讀、Vision OCR 聊天室標題雙重熔斷）正式結構化至 `.agents/` 的 8 大外圍系統元件中。
 
 ---
 
-## 2. 解決方案與剛性防護架構 (Fail-Closed Architecture)
+## 2. Propose–Probe–Compose 雙層遞迴架構
 
-```
-[ 啟動 LINE 桌面版並置頂 ]
-         │
-         ▼
-[ 1. 動態向 Accessibility 查詢全域搜尋框真實邊界 (get_line_search_field_info) ]
-   └── text field 1 of splitter group 1 of window 1
-   └── 即時計算真實幾何中心 (如 422, 178) 並點擊 🎯
-         │
-         ▼
-[ 2. 清空並輸入 target_name (Cmd+A ➜ Backspace ➜ Cmd+V) ]
-         │
-         ▼
-[ 3. 🚨 剛性安全防線：即時回讀搜尋框文字 (current_search_val) ]
-   ├── 若 target_name not in current_search_val:
-   │     └── 立即觸發 CRITICAL 熔斷！中止任務，嚴禁貼圖送出！
-   └── 若驗證通過:
-         └── 繼續下一步
-         │
-         ▼
-[ 4. 選取搜尋結果第一筆好友 ]
-   └── 發送 KeyCode 125 (Down Arrow) 高亮第一項 ➜ KeyCode 36 (Return) 開啟聊天室
-         │
-         ▼
-[ 5. 貼上早安圖片 (Cmd+V) 並在預覽後送出 (dry_run 模式則待命目視) ]
-```
+### Phase 1: Propose（提出 8 大元件修改假設）
+1. **通用不變性修改 (Invariant Edits)**：
+   - **System Prompt** (`.agents/system_prompt.md`)：固化思考優先、最小變更、繁體中文與 Type Hints 規範。
+   - **Guardrails** (`.agents/rules/guardrails.md`)：封裝工具呼叫 $\le 8$ 次上限、密碼輸入白名單（`loginwindow`）與 LINE 發送前雙重剛性熔斷閘門。
+   - **Tool Guidance** (`.agents/tool_guidance.md`)：規範精準搜尋、禁止盲猜 UI 座標與雲地端雙目錄同步指引。
+2. **領域特定修改 (Domain-specific Edits)**：
+   - **Memory** (`AGENT_MEMORY.md` & `.agents/memory.md`)：沉澱 macOS 視窗層級、Cocoa `NSRunLoop`、Vision OCR 與雙端同步教訓。
+   - **Skills** (`.agents/skills/line-safe-delivery/SKILL.md`)：標準化 6 步安全發送流程。
+   - **Scripts** (`scripts/verify_harness_probe.py` & `.agents/scripts/probe_registry.json`)：決定論自動化探針檢測腳本。
+   - **Subagents** (`.agents/subagents/macos-ui-auditor.md`)：定義 macOS UI 自動化安全審查子代理。
+   - **Plugins** (`.agents/plugins/pre_delivery_check.json`)：定義交付前強制測試與同步檢查 Hook。
 
----
+### Phase 2: Probe（探針試跑與驗證）
+- 執行 `harness2-demo --k 2` 驗證本地端雙層遞迴演算法閉環。
+- 執行 `scripts/verify_harness_probe.py` 驗證 `8/8` 元件就緒率、`Quartz`/`AppKit`/`Vision` 框架可用性與全套 19 項單元測試。
 
-## 3. 測試與驗證結果 (Verification Status)
-
-1. **單元測試 100% 綠燈**：
-   - 增加 `test_search_field_mismatch_triggers_fuse_and_blocks_sending`（驗證搜尋框不吻合時強制熔斷）。
-   - 增加 `test_search_field_match_allows_sending`（驗證吻合時正常流程）。
-   - 全套 14 項單元測試全數 PASS。
-2. **實機模擬貼圖驗證 (`scripts/simulate_paste_only.py`)**：
-   - 即時取得搜尋框真實座標 `(295, 159, 254, 38)`，點擊中心點 `(422, 178)`。
-   - 成功輸入 `Sophia Kuo` 並通過「步驟 B.1 驗證搜尋框當前輸入值: 'Sophia Kuo'」。
-   - 精確開啟 Sophia Kuo 聊天室並將早安圖片貼入對話輸入框中！
-3. **雲端與地端同步**：
-   - GitHub main 分支與地端目錄 `/Users/johnkuo/worktemp/Antigravity-Line` 已完全對齊。
+### Phase 3: Compose（組合最終配置與雙端同步）
+- 產出 `.agents/harness_manifest.json` 收斂 Adopted Harness。
+- 推送至 GitHub `main` 並同步更新地端排程目錄 `/Users/johnkuo/worktemp/Antigravity-Line`。

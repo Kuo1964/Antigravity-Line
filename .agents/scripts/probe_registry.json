@@ -1,0 +1,6 @@
+{
+  "probe_script": "scripts/verify_harness_probe.py",
+  "simulation_paste_only": "scripts/simulate_paste_only.py",
+  "simulation_locked_paste": "scripts/simulate_locked_paste_test.py",
+  "doctor": "app/doctor.py"
+}

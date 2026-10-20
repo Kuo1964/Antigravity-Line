@@ -1,22 +1,9 @@
-# 任務清單：根除 LINE 搜尋偏差誤發群組漏洞與強化搜尋回讀熔斷閘門
+# 任務清單：啟動 Harness² 技能進行 `.agents` Propose–Probe–Compose 遞迴優化
 
-- [x] 1. 深度診斷 2026-10-18 21:30 早安圖片誤發至「高爾夫球隊群組」之致命根因（寫死相對座標 Y 軸偏移導致未點入搜尋框，且缺少目標標題/搜尋結果驗證機制）
-- [x] 2. 透過 macOS Accessibility System Events 探測 LINE 搜尋框架構：
-  - [x] 確定全域搜尋框為 `text field 1 of splitter group 1 of window 1`
-  - [x] 取得真實動態絕對座標 `(295, 159, 254, 38)`，點擊中心點 `(422, 178)`
-- [x] 3. 重構 `app/services/line_desktop_controller.py`：
-  - [x] 實裝 `get_line_search_field_info()` 動態獲取搜尋框座標與當前值
-  - [x] 加入「步驟 B.1 搜尋文字回讀剛性熔斷閘門」：若搜尋框文字未包含目標好友，立即中止任務，絕不貼圖送出
-  - [x] 實裝原生實體點擊搜尋結果第一項 `(395, 257)`，徹底解決鍵盤 Down Arrow 未能移出輸入框的選取問題
-  - [x] 實裝「步驟 C.1 macOS Vision OCR 視覺核對剛性熔斷閘門」：即時截圖辨識聊天室標題，確認為 Sophia Kuo 才允許貼圖
-- [x] 4. 新增與執行單元測試：
-  - [x] `tests/test_line_delivery_adapter.py` 新增搜尋框不吻合熔斷、標題 OCR 不吻合熔斷與吻合發送之三項單元測試
-  - [x] 全套 15 項單元測試 100% 綠燈通過
-- [x] 5. 雲端與地端雙向同步：
-  - [x] GitHub main 分支推送最新提交
-  - [x] 地端排程目錄 (`/Users/johnkuo/worktemp/Antigravity-Line`) 完成 `git pull` 同步
-- [x] 6. 實機執行模擬貼圖測試驗證：
-  - [x] 成功輸入 `Sophia Kuo` 並通過「步驟 B.1 搜尋框文字驗證」
-  - [x] 成功原生點擊第一項搜尋結果，成功打開 Sophia Kuo 聊天室
-  - [x] 通過「步驟 C.1 Vision OCR 聊天室標題驗證：match=True」
-  - [x] 成功將早安圖片精準貼入 Sophia Kuo 對話輸入框待命（未發送）
+- [x] 1. 讀取並啟動 `/Users/johnkuo/.gemini/config/skills/harness2/SKILL.md`，檢查本地端 Harness² CLI 環境狀態（`all_clis_ready: true`）
+- [x] 2. **Propose 階段**：針對 8 大外圍元件（System Prompt、Guardrails、Memory、Tool Guidance、Subagents、Skills、Scripts、Plugins）提出通用不變性修改與領域特定修改
+- [x] 3. 建置 `.agents/` 標準配置目錄與 `harness_manifest.json`，並更新 `AGENT_MEMORY.md` 沉澱四大實證經驗教訓
+- [x] 4. **Probe 階段**：
+  - [x] 建立自動化探針腳本 `scripts/verify_harness_probe.py` 與單元測試 `tests/test_harness_probe.py`
+  - [x] 執行 `harness2-demo` 本地雙層遞迴基準驗證与專案 19 項單元測試
+- [x] 5. **Compose 階段**：組合最終 Adopted Harness 配置，提交 Git Commit & Push 並同步更新地端排程目錄 (`/Users/johnkuo/worktemp/Antigravity-Line`)

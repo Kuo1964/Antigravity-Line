@@ -1,0 +1,11 @@
+{
+  "name": "pre_delivery_verification_hook",
+  "version": "1.0.0",
+  "description": "在宣告任務完成前強制執行單元測試、探針檢查與雲地端 Git 同步驗證。",
+  "hooks": {
+    "pre_complete": [
+      "./venv/bin/pytest tests/test_safe_mac_unlocker_unittest.py tests/test_line_delivery_adapter.py tests/test_harness_probe.py",
+      "./venv/bin/python scripts/verify_harness_probe.py"
+    ]
+  }
+}

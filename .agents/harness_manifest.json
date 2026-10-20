@@ -1,0 +1,15 @@
+{
+  "framework": "Google Harness² (Recursive Agent Harnessing)",
+  "project": "Antigravity-Line",
+  "recursion_mode": "Propose-Probe-Compose",
+  "components": {
+    "system_prompt": ".agents/system_prompt.md",
+    "guardrails": ".agents/rules/guardrails.md",
+    "memory": ".agents/memory.md",
+    "tool_guidance": ".agents/tool_guidance.md",
+    "subagents": ".agents/subagents/macos-ui-auditor.md",
+    "skills": ".agents/skills/line-safe-delivery/SKILL.md",
+    "scripts": ".agents/scripts/probe_registry.json",
+    "plugins": ".agents/plugins/pre_delivery_check.json"
+  }
+}
